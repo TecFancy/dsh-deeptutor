@@ -1,0 +1,5 @@
+# dsh-deeptutor plugin overlay.
+# Mount with: dsh web --patch ./dsh-deeptutor/cordis.yml
+- insert:
+    - id: dsh-deeptutor
+      name: '/Users/randal/source/dsh/dsh-deeptutor/src/index.ts'
