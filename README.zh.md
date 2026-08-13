@@ -18,15 +18,21 @@
 
 ## 安装到 profile(bundle 方式)
 
-包已发布到 npm(`dsh-deeptutor`)。bundle 安装分两步:(1) 将 npm 包装入 profile;(2) 将其列入 profile 的 `dsh.profile.bundles`,让加载器真正挂载它。
+包已发布到 npm(`dsh-deeptutor`)。一条命令即可安装:`dsh plugin add` 会转发给 pnpm 安装依赖,并把 profile 的 `dsh.profile.bundles` 与已安装状态对账,因此声明了 `dsh.bundle` 的包(如本插件)会被自动登记(已在 dsh CLI 0.1.0-rc.6 上验证):
 
 ```sh
-# 1. 将 npm 包装入 profile(转发给 pnpm)
 dsh plugin --profile web add dsh-deeptutor
 ```
 
+验证挂载,然后重启 dsh(bundle 列表在启动时解析):
+
+```sh
+dsh --profile web --dump-config | grep dsh-deeptutor
+```
+
+如果你的 dsh CLI 不会自动登记 bundle(旧版本,或手动安装依赖),请在 profile 清单(`~/.dsh/profiles/<name>/package.json`)中手动加入,再运行 `dsh plugin --profile web install`:
+
 ```json
-// 2. 在 profile 清单(~/.dsh/profiles/<name>/package.json)中加入 bundle
 {
   "dependencies": { "dsh-deeptutor": "^0.1.0" },
   "dsh": {
@@ -34,8 +40,6 @@ dsh plugin --profile web add dsh-deeptutor
   }
 }
 ```
-
-两步缺一不可:在 dsh CLI 0.1.0-rc.x 中,`dsh plugin add` 只是 pnpm 转发器——它只安装依赖,**不会**修改 `dsh.profile.bundles`;跳过第 2 步会导致包已安装却从未被加载。安装后需重启 dsh(bundle 列表在启动时解析)。
 
 也可以不动清单,改用用户 patch 层挂载 bundle(仍需先安装 npm 包):
 
