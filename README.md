@@ -1,6 +1,6 @@
 # dsh-deeptutor
 
-**English** | [简体中文](README.zh.md)
+**English** | [简体中文](https://github.com/TecFancy/dsh-deeptutor/blob/main/README.zh.md)
 
 DeepTutor bridge **bundle** for **DeepSeek Harness (dsh)**, migrated from the
 pi coding-agent extension (`TecFancy/pi-extensions`, `extensions/deeptutor` +

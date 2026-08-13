@@ -1,6 +1,6 @@
 # dsh-deeptutor
 
-[English](README.md) | **简体中文**
+[English](https://github.com/TecFancy/dsh-deeptutor/blob/main/README.md) | **简体中文**
 
 面向 **DeepSeek Harness (dsh)** 的 DeepTutor 桥接 **bundle**,从 pi 编码 agent 扩展迁移而来(`TecFancy/pi-extensions`,`extensions/deeptutor` + `skills/deeptutor`)。
 
