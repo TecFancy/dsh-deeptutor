@@ -1,6 +1,6 @@
 {
   "name": "dsh-deeptutor",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "DeepTutor bridge bundle for DeepSeek Harness: learning capabilities, knowledge bases, and note archiving (HTTP/WS first, CLI fallback; auto-adapts local/remote deployment).",
   "keywords": [
     "dsh",
