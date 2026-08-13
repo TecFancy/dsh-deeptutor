@@ -14,22 +14,36 @@
 
 ## 安装到 profile(bundle 方式)
 
-发布后(或指向你控制的 registry),任选其一:
+包已发布到 npm(`dsh-deeptutor`)。bundle 安装分两步:(1) 将 npm 包装入 profile;(2) 将其列入 profile 的 `dsh.profile.bundles`,让加载器真正挂载它。
 
 ```sh
-# 一键:将包安装进 profile 并加入 bundle 列表
+# 1. 将 npm 包装入 profile(转发给 pnpm)
 dsh plugin --profile web add dsh-deeptutor
 ```
 
-或手动编辑 profile 清单(`~/.dsh/profiles/<name>/package.json`):
-
 ```json
+// 2. 在 profile 清单(~/.dsh/profiles/<name>/package.json)中加入 bundle
 {
   "dependencies": { "dsh-deeptutor": "^0.1.0" },
   "dsh": {
     "profile": { "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-deeptutor"] }
   }
 }
+```
+
+两步缺一不可:在 dsh CLI 0.1.0-rc.x 中,`dsh plugin add` 只是 pnpm 转发器——它只安装依赖,**不会**修改 `dsh.profile.bundles`;跳过第 2 步会导致包已安装却从未被加载。安装后需重启 dsh(bundle 列表在启动时解析)。
+
+也可以不动清单,改用用户 patch 层挂载 bundle(仍需先安装 npm 包):
+
+```yaml
+# overlay.yml —— 通过用户 patch 层插入 bundle 行
+- insert:
+    - id: dsh-deeptutor
+      name: 'dsh-deeptutor'
+```
+
+```sh
+dsh web --patch ./overlay.yml
 ```
 
 bundle 清单(`dsh.bundle.patch → cordis.patch.yml`)负责插入插件行;上层 patch 层可按 id 覆盖或禁用。

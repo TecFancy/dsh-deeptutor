@@ -19,23 +19,43 @@ fallback).
 
 ## Install into a profile (bundle)
 
-Publish it (or point `dependencies` at a registry you control), then either:
+The package is published to npm as `dsh-deeptutor`. A bundle install has two
+parts: (1) install the npm package into the profile, and (2) make the loader
+mount it by listing it in the profile's `dsh.profile.bundles`.
 
 ```sh
-# one-shot: install the package into the profile and add it to the bundle list
+# 1. install the npm package into the profile (forwards to pnpm)
 dsh plugin --profile web add dsh-deeptutor
 ```
 
-or add it manually to the profile manifest
-(`~/.dsh/profiles/<name>/package.json`):
-
 ```json
+// 2. add the bundle to the profile manifest (~/.dsh/profiles/<name>/package.json)
 {
   "dependencies": { "dsh-deeptutor": "^0.1.0" },
   "dsh": {
     "profile": { "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-deeptutor"] }
   }
 }
+```
+
+Both steps are required. With dsh CLI 0.1.0-rc.x, `dsh plugin add` is a plain
+pnpm forwarder — it installs the dependency but does **not** touch
+`dsh.profile.bundles`, so skipping step 2 leaves the package installed but
+never loaded. Restart dsh after installing; the bundle list is resolved at
+boot.
+
+Alternatively, keep the manifest untouched and mount the bundle through a user
+patch layer (the npm package still has to be installed first):
+
+```yaml
+# overlay.yml — insert the bundle row via a user patch layer
+- insert:
+    - id: dsh-deeptutor
+      name: 'dsh-deeptutor'
+```
+
+```sh
+dsh web --patch ./overlay.yml
 ```
 
 The bundle manifest (`dsh.bundle.patch → cordis.patch.yml`) inserts the plugin
