@@ -1,5 +1,7 @@
 # dsh-deeptutor
 
+[English](README.md) | **简体中文**
+
 面向 **DeepSeek Harness (dsh)** 的 DeepTutor 桥接 **bundle**,从 pi 编码 agent 扩展迁移而来(`TecFancy/pi-extensions`,`extensions/deeptutor` + `skills/deeptutor`)。
 
 注册三个模型可见工具,驱动 [HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor) 辅导服务:
@@ -9,6 +11,8 @@
 | `deeptutor_run` | 运行学习能力: `deep_solve` / `deep_question` / `deep_research` / `chat` / `mastery_path` / `visualize` / `math_animator`(优先 HTTP/WS,CLI 回退) |
 | `deeptutor_kb` | 列出 / 搜索 / 查看个人知识库(RAG)信息 |
 | `deeptutor_note` | 将 Markdown 学习笔记归档到服务端 notebook |
+
+上表 7 个 capability 是 `deeptutor_run` 工具接受的固定枚举。底层 DeepTutor CLI 可能支持更多命令——用 `deeptutor --help` / `deeptutor <cmd> --help` 可枚举完整命令集。`deeptutor` skill 会指示 agent 用这种方式动态发现命令;当工具的枚举未覆盖某能力时,agent 可直接调用 CLI(本地二进制或经 SSH)来驱动。
 
 部署模式自动适配:本机本地 `serve`(或本地 CLI),或通过自动建立的 SSH 隧道访问服务器(含 SSH CLI 回退)。
 

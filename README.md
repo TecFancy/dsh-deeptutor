@@ -1,5 +1,7 @@
 # dsh-deeptutor
 
+**English** | [简体中文](README.zh.md)
+
 DeepTutor bridge **bundle** for **DeepSeek Harness (dsh)**, migrated from the
 pi coding-agent extension (`TecFancy/pi-extensions`, `extensions/deeptutor` +
 `skills/deeptutor`).
@@ -12,6 +14,13 @@ Registers three model-facing tools that drive the
 | `deeptutor_run` | Run a learning capability: `deep_solve` / `deep_question` / `deep_research` / `chat` / `mastery_path` / `visualize` / `math_animator` (HTTP/WS first, CLI fallback) |
 | `deeptutor_kb` | List / search / info the user's personal knowledge bases (RAG) |
 | `deeptutor_note` | Archive Markdown learning notes to a server notebook |
+
+The seven capabilities above are the fixed enum accepted by `deeptutor_run`.
+The underlying DeepTutor CLI may expose more — enumerate the full command set
+with `deeptutor --help` / `deeptutor <cmd> --help`. The `deeptutor` skill
+instructs the agent to discover commands this way and, when the tool's enum
+doesn't cover a capability, to drive the CLI directly (local binary or over
+SSH).
 
 Deployment auto-detects local vs. remote: local `serve` (or local CLI) on this
 machine, or a server reached through an auto-started SSH tunnel (with SSH CLI
