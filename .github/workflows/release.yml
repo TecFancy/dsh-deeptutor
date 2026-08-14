@@ -19,6 +19,11 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - name: Verify the two md-to-html.js copies are identical
+        shell: bash
+        run: |
+          node --input-type=module -e "import fs from 'node:fs'; const a=fs.readFileSync('scripts/md-to-html.js','utf8'); const b=fs.readFileSync('skills/html-doc/scripts/md-to-html.js','utf8'); if(a!==b){ console.error('scripts/md-to-html.js differs from skills/html-doc/scripts/md-to-html.js'); process.exit(1) }"
+      - run: npm run pack:check
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
