@@ -1,7 +1,7 @@
 {
   "name": "dsh-deeptutor",
   "version": "0.1.8",
-  "description": "DeepTutor bridge bundle for DeepSeek Harness: learning capabilities, knowledge bases, and note archiving (HTTP/WS first, CLI fallback; auto-adapts local/remote deployment).",
+  "description": "Learning assistant extension for DeepSeek Harness (dsh): DeepTutor tutoring for your agent — deep explanations, self-test questions, learning paths, personal knowledge-base search (RAG), and note archiving (HTTP/WS first, CLI fallback; auto-adapts local/remote deployment).",
   "keywords": [
     "dsh",
     "dsh-plugin",

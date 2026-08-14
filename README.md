@@ -2,18 +2,28 @@
 
 **English** | [简体中文](https://github.com/TecFancy/dsh-deeptutor/blob/main/README.zh.md)
 
-DeepTutor bridge **bundle** for **DeepSeek Harness (dsh)**, migrated from the
-pi coding-agent extension (`TecFancy/pi-extensions`, `extensions/deeptutor` +
-`skills/deeptutor`).
+A **learning-assistant extension for DeepSeek Harness (dsh)**. It connects your
+agent to a [HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor) tutoring
+service, so a dsh session can explain topics in depth, quiz you, plan learning
+paths, search your personal knowledge bases, and keep a study notebook — all
+without leaving the harness.
 
-Registers three model-facing tools that drive the
-[HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor) tutoring service:
+Ask the agent *"teach me async/await"* and it can run a deep-solve, render the
+answer as a self-contained HTML study page you can open in a browser, and
+archive a summary into your notebook.
 
-| Tool | Purpose |
+Migrated from the pi coding-agent extension
+(`TecFancy/pi-extensions`, `extensions/deeptutor` + `skills/deeptutor`).
+
+## What it adds
+
+Three agent-facing tools that the model uses whenever you ask for learning help:
+
+| Tool | What it does |
 |---|---|
-| `deeptutor_run` | Run a learning capability: `deep_solve` / `deep_question` / `deep_research` / `chat` / `mastery_path` / `visualize` / `math_animator` (HTTP/WS first, CLI fallback) |
-| `deeptutor_kb` | List / search / info the user's personal knowledge bases (RAG) |
-| `deeptutor_note` | Archive Markdown learning notes to a server notebook |
+| `deeptutor_run` | Runs one learning capability: `deep_solve` (in-depth explanation), `deep_question` (self-test questions), `deep_research`, `chat`, `mastery_path` (learning-path planning), `visualize` / `math_animator` (visualization). Can mount your knowledge bases (`kbs`) and tools (`rag`, `web_search`, `reason`, `code_execution`, …); returns a `session_id` so later turns continue the same context. |
+| `deeptutor_kb` | Lists, searches, and inspects your personal knowledge bases (RAG) |
+| `deeptutor_note` | Archives Markdown study notes (plans, summaries, wrong answers) into a server notebook |
 
 The seven capabilities above are the fixed enum accepted by `deeptutor_run`.
 The underlying DeepTutor CLI may expose more — enumerate the full command set
@@ -22,9 +32,35 @@ instructs the agent to discover commands this way and, when the tool's enum
 doesn't cover a capability, to drive the CLI directly (local binary or over
 SSH).
 
-Deployment auto-detects local vs. remote: local `serve` (or local CLI) on this
-machine, or a server reached through an auto-started SSH tunnel (with SSH CLI
-fallback).
+## Example session
+
+A typical flow when you ask your agent for learning help:
+
+1. **Ask** — *"Explain C# generics covariance using my dotnet knowledge base, and generate a study page."*
+2. The agent grounds the answer in your own material: `deeptutor_kb` (`action=search`, `kb=dotnet`).
+3. It runs a deep-solve: `deeptutor_run` (`capability=deep_solve`, `kbs=[dotnet]`, `html=data/study/csharp-covariance.html`) — the answer comes back and a self-contained HTML page (plus the `.md` source) is written to disk.
+4. It files a summary: `deeptutor_note` (`notebook=dotnet-learning`, `type=solve`).
+
+Nothing here is a fixed script — the agent picks the tools and parameters based
+on what you ask for.
+
+A real recording of exactly this flow (deep-solve on the async/await state
+machine, mounted on a `dotnet-csharp` knowledge base, rendered to an HTML
+study page, then archived to a notebook):
+
+![Final answer](docs/demo/en-final-answer.png)
+
+![Generated HTML study page](docs/demo/en-study-page.png)
+
+## Requirements
+
+- A working DeepSeek Harness (dsh) install. Bundle auto-registration via
+  `dsh plugin add` is verified on dsh CLI 0.1.0-rc.6 + pnpm 8.15.6.
+- A DeepTutor deployment, either:
+  - **Local** — `deeptutor serve` running on this machine, or the `deeptutor`
+    CLI on `PATH` (used as fallback);
+  - **Remote** — DeepTutor on a server, reached through an auto-started SSH
+    tunnel (with SSH CLI fallback).
 
 ## Install into a profile (bundle)
 
@@ -46,7 +82,7 @@ node scripts/install-profile.mjs --profile web
 Or run the underlying command yourself — `dsh plugin add` forwards to pnpm
 and then reconciles the profile's `dsh.profile.bundles` against the installed
 state, so a `dsh.bundle`-declaring package like this one is registered
-automatically (verified on dsh CLI 0.1.0-rc.6 + pnpm 8.15.6):
+automatically:
 
 ```sh
 dsh plugin --profile web add dsh-deeptutor -w
@@ -108,26 +144,6 @@ dsh web --patch ./overlay.yml
 The bundle manifest (`dsh.bundle.patch → cordis.patch.yml`) inserts the plugin
 row; later patch layers can override or disable it by id.
 
-## Develop against a checkout (no publish needed)
-
-```sh
-dsh web --patch /path/to/dsh-deeptutor/cordis.yml
-```
-
-## Build & publish
-
-```sh
-npm install
-npm run build        # tsc → lib/ (relative .ts imports rewritten to .js)
-npm run typecheck
-npm pack             # inspect dsh-deeptutor-0.1.0.tgz
-npm publish          # set a scope/registry of your choice first
-```
-
-Node ≥ 22.6 (type stripping) is needed to load the raw `src/*.ts` via
-`--patch`; the published bundle ships compiled `lib/`, so installed profiles
-run on plain Node ≥ 20 ESM.
-
 ## Skills
 
 Two skills ship inside this package (`skills/deeptutor` and
@@ -162,6 +178,35 @@ export DEEPTUTOR_REMOTE_HOME="/home/ubuntu/my-deeptutor"
 ```
 
 Restart dsh after changing env vars.
+
+## How it works
+
+The plugin auto-detects the deployment: if a DeepTutor API is reachable (local
+`serve`, or a remote server via tunnel), learning turns run over HTTP/WebSocket;
+otherwise it falls back to the CLI — the local `deeptutor` binary, or the remote
+binary over SSH. Remote mode starts the SSH tunnel on demand and tears it down
+when the plugin unloads.
+
+## Develop against a checkout (no publish needed)
+
+```sh
+dsh web --patch /path/to/dsh-deeptutor/cordis.yml
+```
+
+## Build & publish
+
+```sh
+npm install
+npm run build        # tsc → lib/ (relative .ts imports rewritten to .js)
+npm run typecheck
+npm test             # node:test + type stripping
+npm pack             # inspect dsh-deeptutor-<version>.tgz
+npm publish          # set a scope/registry of your choice first
+```
+
+Node ≥ 22.6 (type stripping) is needed to load the raw `src/*.ts` via
+`--patch`; the published bundle ships compiled `lib/`, so installed profiles
+run on plain Node ≥ 20 ESM.
 
 ## Layout
 
