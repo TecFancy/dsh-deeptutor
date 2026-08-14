@@ -128,21 +128,44 @@ export function wsRunTurn(
   });
 }
 
-/** Execute one turn via the CLI (local or SSH). */
-export async function cliRunTurn(
-  params: RunParams,
-  timeoutMs: number,
-  signal?: AbortSignal,
-): Promise<TurnResult> {
+/**
+ * Build the `deeptutor run` argv for a capability turn (pure, unit-tested).
+ * Scalar config values go as repeatable --config k=v; object/array values are
+ * collected into --config-json (the CLI's documented form for complex config)
+ * instead of being stringified into a k=<json> value that no parser expects.
+ */
+export function buildRunArgs(params: RunParams): string[] {
   const argv = ["run", params.capability, params.prompt, "--format", "json"];
   for (const kb of params.kbs ?? []) argv.push("--kb", kb);
   for (const t of params.tools ?? []) argv.push("--tool", t);
   if (params.session_id) argv.push("--session", params.session_id);
   if (params.language) argv.push("--language", params.language);
-  for (const [k, v] of Object.entries(params.config ?? {}))
-    argv.push("--config", `${k}=${typeof v === "object" ? JSON.stringify(v) : v}`);
-  const { stdout, stderr, code, killed } = await runCli(argv, { signal, timeoutMs });
-  if (killed) throw new Error(`CLI execution timed out (${Math.round(timeoutMs / 1000)}s)`);
+  const complexConfig: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(params.config ?? {})) {
+    if (typeof v === "object" && v !== null) complexConfig[k] = v;
+    else argv.push("--config", `${k}=${v}`);
+  }
+  if (Object.keys(complexConfig).length > 0) {
+    argv.push("--config-json", JSON.stringify(complexConfig));
+  }
+  return argv;
+}
+
+/** Execute one turn via the CLI (local or SSH). `run` is injectable for tests. */
+export async function cliRunTurn(
+  params: RunParams,
+  timeoutMs: number,
+  signal?: AbortSignal,
+  run: typeof runCli = runCli,
+): Promise<TurnResult> {
+  const { stdout, stderr, code, killed } = await run(buildRunArgs(params), { signal, timeoutMs });
+  if (killed) {
+    // A kill can come from the user cancelling (signal) or from the timeout;
+    // report the real reason instead of always blaming the timeout.
+    throw new Error(
+      signal?.aborted ? "Aborted" : `CLI execution timed out (${Math.round(timeoutMs / 1000)}s)`,
+    );
+  }
   if (code !== 0) throw new Error(`CLI exit=${code}: ${stderr || "(no stderr)"}`);
   const state: TurnResult = { answer: "", errors: [], toolCalls: [] };
   for (const line of stdout.split("\n")) {
