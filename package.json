@@ -1,6 +1,6 @@
 {
   "name": "dsh-deeptutor",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "DeepTutor bridge bundle for DeepSeek Harness: learning capabilities, knowledge bases, and note archiving (HTTP/WS first, CLI fallback; auto-adapts local/remote deployment).",
   "keywords": [
     "dsh",
@@ -12,6 +12,9 @@
     "agent"
   ],
   "license": "MIT",
+  "engines": {
+    "node": ">=20.11"
+  },
   "type": "module",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
@@ -47,7 +50,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "prepack": "npm run build && npm run typecheck",
-    "pack:check": "npm pack --dry-run"
+    "pack:check": "npm pack --dry-run",
+    "test": "node --test --experimental-strip-types"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",

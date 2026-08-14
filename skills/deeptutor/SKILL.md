@@ -12,7 +12,7 @@ questions, and study plans, then archives notes to a DeepTutor notebook.
 This skill is **agent-agnostic**: every action below has two equivalent
 drivers —
 
-- **dsh (with the dsh-deeptutor bundle installed):** the `deeptutor_*` tools.
+- **pi / dsh (with the pi deeptutor extension or the `dsh-deeptutor` bundle installed):** the `deeptutor_*` tools.
   They auto-adapt local/remote deployment (HTTP/WS first with an automatic
   SSH tunnel, CLI fallback) and stream progress.
 - **Any agent / plain CLI:** the `deeptutor` executable directly (local
@@ -30,7 +30,7 @@ what matters.
 
 ## Configuration (env vars, agent-agnostic)
 
-Nothing is hardcoded in this skill; all server parameters come from environment variables (put them in `~/.bashrc` or `~/.zshrc`; any agent — dsh / Claude Code / Codex / opencode — inherits them at startup). **Deployment mode adapts automatically**:
+Nothing is hardcoded in this skill; all server parameters come from environment variables (put them in `~/.bashrc` or `~/.zshrc`; any agent — pi / dsh / Claude Code / Codex / opencode — inherits them at startup). **Deployment mode adapts automatically**:
 
 ```bash
 # Remote deployment (DeepTutor on a server, reached through an SSH tunnel)
@@ -44,8 +44,8 @@ export DEEPTUTOR_REMOTE_HOME="/home/ubuntu/my-deeptutor"
 # export DEEPTUTOR_LOCAL_BIN="deeptutor"             # local CLI path (default: deeptutor on PATH)
 ```
 
-- **dsh path:** API reachable (local serve or tunnel) → HTTP/WS; unreachable →
-  local CLI or SSH CLI fallback automatically. The bundle starts/recycles
+- **Tools path:** API reachable (local serve or tunnel) → HTTP/WS; unreachable →
+  local CLI or SSH CLI fallback automatically. The extension/bundle starts/recycles
   the SSH tunnel; local mode needs no tunnel.
 - **Plain CLI path:** run `deeptutor <subcommand>` locally, or
   `ssh <DEEPTUTOR_SSH_HOST> <DEEPTUTOR_REMOTE_BIN> <subcommand>` for remote
@@ -54,7 +54,7 @@ export DEEPTUTOR_REMOTE_HOME="/home/ubuntu/my-deeptutor"
 
 ## Actions Cheat Sheet
 
-| Action                       | dsh (tools)                      | CLI equivalent (`deeptutor …`)                               |
+| Action                       | Tools (`deeptutor_*`)            | CLI equivalent (`deeptutor …`)                               |
 | ---------------------------- | -------------------------------- | ------------------------------------------------------------ |
 | List knowledge bases         | `deeptutor_kb action=list`       | `kb list --format json`                                      |
 | Search a knowledge base      | `deeptutor_kb action=search`     | `kb search <kb> "<query>" --format json --mode hybrid`       |
@@ -96,13 +96,13 @@ in `--help`, report that to the user instead of guessing.
 
 - `web_search` for **authoritative sources**: official docs (Microsoft Learn / learn.microsoft.com), official blogs, trusted tutorials. Keep the source links.
 - Search the user's personal knowledge base (pick the right one: dotnet-related → their dotnet base, database → sqlserver) to get their own curated notes:
-  - pi: `deeptutor_kb action=search kb=<kb> query="<topic>"`
+  - Tools: `deeptutor_kb action=search kb=<kb> query="<topic>"`
   - CLI: `deeptutor kb search <kb> "<topic>" --format json`
   - Always list bases first (`deeptutor_kb action=list` / `deeptutor kb list --format json`) — never assume names.
 
 ### 2. Deep Solve
 
-- pi: `deeptutor_run capability=deep_solve prompt="<topic>" kbs=[<kb>] tools=[rag, web_search] language=zh`
+- Tools: `deeptutor_run capability=deep_solve prompt="<topic>" kbs=[<kb>] tools=[rag, web_search] language=zh`
 - CLI: `deeptutor run deep_solve "<topic>" --kb <kb> --tool rag --tool web_search --language zh --format json`
 
 **Always record the returned `session_id`** — reuse it for every follow-up turn so DeepTutor keeps the context (chat history, knowledge bases, tools).
@@ -113,7 +113,7 @@ Continue with the same `session_id`: details, code examples, common pitfalls, di
 
 ### 4. Self-test
 
-- pi: `deeptutor_run capability=deep_question prompt="<topic essentials>" session_id=<same> config={num_questions: 5} kbs=[<kb>] language=zh`
+- Tools: `deeptutor_run capability=deep_question prompt="<topic essentials>" session_id=<same> config={num_questions: 5} kbs=[<kb>] language=zh`
 - CLI: `deeptutor run deep_question "<topic essentials>" --session <same> --config num_questions=5 --kb <kb> --language zh --format json`
 
 ### 5. Output a study plan
@@ -137,7 +137,7 @@ Node converter):
 node skills/html-doc/scripts/md-to-html.js <answer.md> --out <page.html> --title "<主题>" --toc
 ```
 
-On dsh, `deeptutor_run` does this automatically when given the `html` param:
+When given the `html` param, `deeptutor_run` does this automatically:
 
 ```
 deeptutor_run capability=deep_solve  prompt=<topic>  kbs=[...]  tools=[rag, web_search]
@@ -152,7 +152,7 @@ Then tell the user the HTML file paths so they can open them in a browser.
 
 Store the final notes/plan in a server notebook (e.g. `dotnet-learning`) so they can be retrieved for review later:
 
-- dsh: `deeptutor_note notebook=<name> title="<t>" type=solve content=<markdown>`
+- Tools: `deeptutor_note notebook=<name> title="<t>" type=solve content=<markdown>`
 - CLI:
   ```bash
   deeptutor notebook list                       # find the notebook id
@@ -172,7 +172,8 @@ explicit request — never proactively.
 
 ## Notes
 
-- On dsh, calls go through HTTP/WS first (tunnel), falling back to SSH CLI automatically when the tunnel is down; `deeptutor_run` streams over WebSocket so progress is visible.
+- Tool calls go through HTTP/WS first (tunnel), falling back to SSH CLI automatically when the tunnel is down; `deeptutor_run` streams over WebSocket so progress is visible.
+- CLI-only flags (not exposed as `deeptutor_run` tool parameters): `--config-json` (complex config; the tools pass config through the API's `config` parameter instead), `--notebook-ref`, `--history-ref`.
 - `deep_research` can take minutes: give a generous timeout (900+) or split long tasks.
 - Results may be truncated (default 30000 chars) — ask to continue for the full content.
 - RAG hits can be noisy; treat official sources as authoritative and point out conflicts to the user.
