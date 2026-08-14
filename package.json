@@ -12,6 +12,9 @@
     "agent"
   ],
   "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "type": "module",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
@@ -47,7 +50,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "prepack": "npm run build && npm run typecheck",
-    "pack:check": "npm pack --dry-run"
+    "pack:check": "npm pack --dry-run",
+    "test": "node --test --experimental-strip-types"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
