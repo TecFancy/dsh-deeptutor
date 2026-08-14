@@ -52,6 +52,7 @@ export function configGuide(): string {
     '   export DEEPTUTOR_REMOTE_HOME="remote-DEEPTUTOR_HOME-workspace"\n' +
     "   Verify serve is running on the server (ssh to it: curl http://127.0.0.1:8001/api/v1/system/status)\n" +
     "   Verify passwordless SSH login works (ssh alias + BatchMode)\n" +
+    'PowerShell users: use $env:VAR="value" instead of export VAR=value.\n' +
     "Restart the agent after configuring.\n"
   );
 }
