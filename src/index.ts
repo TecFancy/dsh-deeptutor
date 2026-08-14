@@ -162,6 +162,10 @@ export function apply(ctx: Context) {
               configHint() + fmtTurnResult(args.capability, r, maxChars) + htmlNote,
           });
         } catch (err: any) {
+          if (exec.signal.aborted) {
+            // user cancelled mid-CLI-run: report it as a cancellation, not a failure
+            throw new Error("[deeptutor_run cancelled]");
+          }
           throw new Error(
             configGuide() +
               `[deeptutor_run failed (HTTP and CLI both unavailable)] ${err?.message ?? String(err)}`,
