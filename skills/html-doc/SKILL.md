@@ -18,7 +18,7 @@ Convert Markdown into a beautiful, self-contained local HTML file (single file, 
 html-doc/
 ├── SKILL.md               # this file
 ├── scripts/
-│   └── md-to-html.js      # zero-dependency Markdown → HTML converter (Node ≥ 18)
+│   └── md-to-html.js      # zero-dependency Markdown → HTML converter (Node ≥ 20.11)
 └── assets/
     └── template.html      # default HTML template (CSS + JS, customizable)
 ```
@@ -86,6 +86,6 @@ Edit `assets/template.html` — it uses `{{TITLE}}`, `{{BODY}}`, `{{THEME}}`, `{
 
 ## Notes
 
-- Zero dependencies — only `node` (≥ 18) is required; no npm install needed
+- Zero dependencies — only `node` (≥ 20.11, uses `import.meta.dirname`) is required; no npm install needed
 - Output is fully self-contained: inline CSS + JS, no external fonts/CDN (offline-friendly)
 - Escaping is handled: content is HTML-escaped before insertion. Raw-HTML passthrough is intentionally narrow (`<details>`/`<summary>` only) since `deeptutor_run` feeds model/web_search-sourced answers into this converter automatically — a wider tag whitelist would let untrusted `<script>`/`on*=` content ride along into the generated local HTML.

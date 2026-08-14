@@ -31,6 +31,7 @@ export async function apiProbe(timeoutMs = 1500): Promise<boolean> {
 export async function ensureApi(): Promise<boolean> {
   if (await apiProbe(1200)) return true;
   if (!SSH_HOST) return false; // Local deployment: fall back to local CLI when serve is down, no tunnel needed
+  let tunnelDead = false;
   if (!tunnelProc || tunnelProc.exitCode !== null) {
     tunnelProc = spawn(
       "ssh",
@@ -52,9 +53,16 @@ export async function ensureApi(): Promise<boolean> {
       ],
       { stdio: "ignore", windowsHide: true },
     );
+    // Fast-fail: a tunnel that exits immediately (bad alias, port in use,
+    // refused connection) is not going to recover — stop waiting for it.
+    tunnelProc.once("exit", () => {
+      tunnelDead = true;
+      tunnelProc = null;
+    });
     tunnelProc.unref();
   }
   for (let i = 0; i < 20; i++) {
+    if (tunnelDead) return false;
     if (await apiProbe(1000)) return true;
     await new Promise((r) => setTimeout(r, 500));
   }
@@ -70,7 +78,14 @@ export async function apiJson(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 60_000);
   const onAbort = () => controller.abort();
-  opts.signal?.addEventListener("abort", onAbort, { once: true });
+  // An already-aborted signal never fires its "abort" event again — check the
+  // flag first so a pre-aborted call fails immediately instead of running to
+  // completion against a still-open controller.
+  if (opts.signal?.aborted) {
+    controller.abort();
+  } else {
+    opts.signal?.addEventListener("abort", onAbort, { once: true });
+  }
   try {
     const res = await fetch(`${API_BASE}${path}`, { ...init, signal: controller.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);

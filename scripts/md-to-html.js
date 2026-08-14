@@ -9,7 +9,7 @@
  *
  * Features: headings, fenced code blocks, inline code/bold/italic/links, lists,
  * task lists, blockquotes, pipe tables, hr, quiz answer collapsing (<details>),
- * raw HTML passthrough, HTML escaping. Zero npm dependencies (Node >= 22).
+ * raw HTML passthrough, HTML escaping. Zero npm dependencies (Node >= 20.11 — uses import.meta.dirname).
  */
 "use strict";
 
@@ -29,20 +29,39 @@ function parseArgs(argv) {
     collapse: true,
   };
   const positional = [];
+  const valueFlags = new Set(["--out", "--title", "--theme", "--lang"]);
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === "--out") opts.out = argv[++i];
-    else if (a === "--title") opts.title = argv[++i];
-    else if (a === "--theme") opts.theme = argv[++i] === "dark" ? "dark" : "light";
-    else if (a === "--toc") opts.toc = true;
-    else if (a === "--lang") opts.lang = argv[++i];
+    if (a === "--toc") opts.toc = true;
     else if (a === "--no-collapse") opts.collapse = false;
     else if (a === "--help" || a === "-h") {
       printHelp();
       process.exit(0);
+    } else if (valueFlags.has(a)) {
+      const value = argv[i + 1];
+      if (value === undefined || value.startsWith("--")) {
+        fail(`Missing value for ${a} (e.g. --out out.html)`);
+      }
+      i++;
+      if (a === "--out") opts.out = value;
+      else if (a === "--title") opts.title = value;
+      else if (a === "--theme") {
+        if (value !== "dark" && value !== "light") {
+          fail(`Invalid --theme value "${value}": expected dark or light`);
+        }
+        opts.theme = value;
+      } else if (a === "--lang") opts.lang = value;
+    } else if (a.startsWith("--")) {
+      fail(`Unknown option: ${a} (run with --help for usage)`);
     } else positional.push(a);
   }
   return { opts, positional };
+}
+
+/** Print an error to stderr and exit non-zero (CLI contract: never silently swallow bad flags). */
+function fail(message) {
+  console.error(`[html-doc] ${message}`);
+  process.exit(1);
 }
 
 function printHelp() {
@@ -330,7 +349,16 @@ function main() {
       : "";
 
   const generated = new Date().toISOString().slice(0, 10);
-  const templatePath = path.join(import.meta.dirname, "..", "assets", "template.html");
+  // The same converter ships in two locations (skills/html-doc/scripts/ and a
+  // package-root scripts/ copy); resolve the template wherever we are.
+  const templateCandidates = [
+    path.join(import.meta.dirname, "..", "assets", "template.html"),
+    path.join(import.meta.dirname, "..", "skills", "html-doc", "assets", "template.html"),
+  ];
+  const templatePath = templateCandidates.find((p) => fs.existsSync(p));
+  if (!templatePath) {
+    fail(`template.html not found (looked in: ${templateCandidates.join(", ")})`);
+  }
   let template = fs.readFileSync(templatePath, "utf8");
   template = template
     .replace(/\{\{TITLE\}\}/g, esc(title))
