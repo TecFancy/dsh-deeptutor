@@ -200,7 +200,8 @@ export function apply(ctx: Context) {
         },
         top_k: {
           type: "number",
-          description: "Number of hits to return, default 5",
+          description:
+            "Number of hits to return, default 5 (applied locally to the CLI search result; the deeptutor CLI has no --top-k flag)",
         },
         max_chars: {
           type: "number",
@@ -267,7 +268,8 @@ export function apply(ctx: Context) {
             );
           }
         }
-        // CLI fallback (local or SSH)
+        // CLI fallback (local or SSH). NOTE: `kb search` has no --top-k flag
+        // (verified on deeptutor CLI 1.5.x); top_k is applied locally below.
         let argv: string[];
         if (args.action === "list") {
           argv = ["kb", "list", "--format", "json"];
@@ -284,7 +286,6 @@ export function apply(ctx: Context) {
             "--mode",
             args.mode ?? "hybrid",
           ];
-          if (args.top_k) argv.push("--top-k", String(args.top_k));
         }
         const { stdout, stderr, code, killed } = await runCli(argv, {
           signal: exec.signal,
@@ -300,16 +301,30 @@ export function apply(ctx: Context) {
         let body = stdout.trim() || "(empty result)";
         if (args.action === "search") {
           try {
-            const arr = JSON.parse(stdout);
-            if (Array.isArray(arr)) {
-              body = arr
-                .map((s: any, i: number) => {
-                  const text = s.text ?? s.content ?? s.snippet ?? JSON.stringify(s);
-                  const src = s.source ?? s.doc_name ?? s.file ?? "";
-                  return `[${i + 1}]${src ? `  source: ${src}` : ""}\n${typeof text === "string" ? text : JSON.stringify(text)}`;
-                })
-                .join("\n\n");
-              body = `${arr.length} hits:\n\n` + body;
+            const parsed = JSON.parse(stdout);
+            const fmtHit = (s: any, i: number) => {
+              const text = s.text ?? s.content ?? s.snippet ?? JSON.stringify(s);
+              const src = s.source ?? s.doc_name ?? s.file ?? "";
+              const title = s.title ? `  title: ${s.title}` : "";
+              const score = typeof s.score === "number" ? `  score: ${s.score}` : "";
+              return `[${i + 1}]${src ? `  source: ${src}` : ""}${title}${score}\n${typeof text === "string" ? text : JSON.stringify(text)}`;
+            };
+            // Current deeptutor CLI (1.5.x) returns an object
+            // { query, answer, content, sources, provider }; older builds
+            // returned a bare array of hits. Accept both.
+            if (Array.isArray(parsed)) {
+              const hits = args.top_k ? parsed.slice(0, args.top_k) : parsed;
+              body = `${hits.length} hits:\n\n` + hits.map(fmtHit).join("\n\n");
+            } else if (parsed && typeof parsed === "object") {
+              const parts: string[] = [];
+              if (parsed.query) parts.push(`Query: ${parsed.query}`);
+              if (typeof parsed.answer === "string" && parsed.answer.trim())
+                parts.push(`Answer: ${parsed.answer.trim()}`);
+              const sources = Array.isArray(parsed.sources) ? parsed.sources : [];
+              const hits = args.top_k ? sources.slice(0, args.top_k) : sources;
+              parts.push(`${hits.length} hits:`);
+              parts.push(hits.map(fmtHit).join("\n\n"));
+              body = parts.join("\n\n");
             }
           } catch {
             /* non-JSON output returned as-is */
