@@ -35,8 +35,22 @@ package like this one is registered automatically (verified on dsh CLI
 0.1.0-rc.6):
 
 ```sh
-dsh plugin --profile web add dsh-deeptutor
+dsh plugin --profile web add dsh-deeptutor -w
 ```
+
+> **Pitfall — pnpm workspace-root check.** The dsh profile scaffold ships a
+> `pnpm-workspace.yaml` (`packages: ["."]`, `nodeLinker: hoisted`), which makes
+> the profile directory itself a pnpm workspace root. On pnpm ≥ 8, `pnpm add`
+> in a workspace root aborts with `ERR_PNPM_ADDING_TO_ROOT` unless the
+> workspace-root flag is explicit, so the command above appends
+> `-w`/`--workspace-root`. Verified on dsh CLI 0.1.0-rc.6 + pnpm 8.15.6. Two
+> ways to handle it:
+>
+> 1. Keep `-w` in the install command (recommended — harmless everywhere).
+> 2. Or allow the plain command permanently: add
+>    `ignore-workspace-root-check: true` to
+>    `~/.dsh/profiles/<name>/pnpm-workspace.yaml`, then
+>    `dsh plugin --profile web add dsh-deeptutor` works as written.
 
 Verify the bundle is mounted, then restart dsh (the bundle list is resolved
 at boot):

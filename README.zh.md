@@ -21,8 +21,13 @@
 包已发布到 npm(`dsh-deeptutor`)。一条命令即可安装:`dsh plugin add` 会转发给 pnpm 安装依赖,并把 profile 的 `dsh.profile.bundles` 与已安装状态对账,因此声明了 `dsh.bundle` 的包(如本插件)会被自动登记(已在 dsh CLI 0.1.0-rc.6 上验证):
 
 ```sh
-dsh plugin --profile web add dsh-deeptutor
+dsh plugin --profile web add dsh-deeptutor -w
 ```
+
+> **坑:pnpm workspace-root 检查。** dsh 的 profile 脚手架自带 `pnpm-workspace.yaml`(`packages: ["."]`、`nodeLinker: hoisted`),profile 目录本身就是 pnpm workspace 根。在 pnpm ≥ 8 上,`pnpm add` 在 workspace 根目录执行会因 `ERR_PNPM_ADDING_TO_ROOT` 中止,必须显式加 workspace-root 标志,所以上面的命令追加了 `-w`/`--workspace-root`。已在 dsh CLI 0.1.0-rc.6 + pnpm 8.15.6 上验证。两种处理方式:
+>
+> 1. 安装命令保留 `-w`(推荐,任何环境都无害)。
+> 2. 或者永久放行裸命令:在 `~/.dsh/profiles/<name>/pnpm-workspace.yaml` 中加入 `ignore-workspace-root-check: true`,之后 `dsh plugin --profile web add dsh-deeptutor` 按原样即可。
 
 验证挂载,然后重启 dsh(bundle 列表在启动时解析):
 
