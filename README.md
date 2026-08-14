@@ -28,25 +28,43 @@ fallback).
 
 ## Install into a profile (bundle)
 
-The package is published to npm as `dsh-deeptutor`. Install it with a single
-command — `dsh plugin add` forwards to pnpm and then reconciles the profile's
-`dsh.profile.bundles` against the installed state, so a `dsh.bundle`-declaring
-package like this one is registered automatically (verified on dsh CLI
-0.1.0-rc.6):
+The package is published to npm as `dsh-deeptutor`. Recommended one-liner —
+runs the bundled installer (`scripts/install-profile.mjs`, exposed as the
+`dsh-deeptutor` binary), which wraps `dsh plugin add` and automatically
+handles the pnpm workspace-root check described below:
+
+```sh
+pnpm dlx dsh-deeptutor --profile web
+```
+
+From a checkout of this repo, the same installer runs directly:
+
+```sh
+node scripts/install-profile.mjs --profile web
+```
+
+Or run the underlying command yourself — `dsh plugin add` forwards to pnpm
+and then reconciles the profile's `dsh.profile.bundles` against the installed
+state, so a `dsh.bundle`-declaring package like this one is registered
+automatically (verified on dsh CLI 0.1.0-rc.6 + pnpm 8.15.6):
 
 ```sh
 dsh plugin --profile web add dsh-deeptutor -w
 ```
 
-> **Pitfall — pnpm workspace-root check.** The dsh profile scaffold ships a
-> `pnpm-workspace.yaml` (`packages: ["."]`, `nodeLinker: hoisted`), which makes
-> the profile directory itself a pnpm workspace root. On pnpm ≥ 8, `pnpm add`
-> in a workspace root aborts with `ERR_PNPM_ADDING_TO_ROOT` unless the
-> workspace-root flag is explicit, so the command above appends
-> `-w`/`--workspace-root`. Verified on dsh CLI 0.1.0-rc.6 + pnpm 8.15.6. Two
-> ways to handle it:
+> **Pitfall — pnpm workspace-root check.** The dsh profile scaffold always
+> writes a `pnpm-workspace.yaml` (`packages: ["."]`, `nodeLinker: hoisted`),
+> which makes the profile directory itself a pnpm workspace root. On
+> pnpm ≥ 8, `pnpm add` in a workspace root aborts with
+> `ERR_PNPM_ADDING_TO_ROOT` unless the workspace-root flag is explicit, so
+> the command above appends `-w`/`--workspace-root` (pnpm prints this error
+> on stdout on Windows, which is why a plain `dsh plugin add` without the
+> flag fails even though the output looks like a warning). Two ways to
+> handle it:
 >
-> 1. Keep `-w` in the install command (recommended — harmless everywhere).
+> 1. Use the installer / keep `-w` in the command (recommended — the
+>    installer tries the plain command first and adds `-w` automatically
+>    only when the check trips).
 > 2. Or allow the plain command permanently: add
 >    `ignore-workspace-root-check: true` to
 >    `~/.dsh/profiles/<name>/pnpm-workspace.yaml`, then
@@ -140,6 +158,7 @@ Restart dsh after changing env vars.
 src/                 # TypeScript sources (dev loading, typecheck)
 lib/                 # compiled ESM (published entry, from `npm run build`)
 scripts/md-to-html.js  # zero-dependency Markdown → HTML converter
+scripts/install-profile.mjs  # one-shot profile installer (exposed as the `dsh-deeptutor` binary)
 cordis.yml           # dev overlay: insert src/index.ts by absolute path
 cordis.patch.yml     # bundle patch: insert the package by name
 ```
