@@ -12,6 +12,14 @@
     "agent"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TecFancy/dsh-deeptutor.git"
+  },
+  "homepage": "https://github.com/TecFancy/dsh-deeptutor",
+  "bugs": {
+    "url": "https://github.com/TecFancy/dsh-deeptutor/issues"
+  },
   "engines": {
     "node": ">=20.11"
   },
