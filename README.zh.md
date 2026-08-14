@@ -100,6 +100,8 @@ npm publish
 
 升级包版本时会就地覆盖 skill 文件;包未携带的文件不会被删除。
 
+`skills/` 下的文件与 `TecFancy/pi-extensions` 中的同名技能逐字节一致(以 pi 仓库为唯一来源,保持 agent 中立)。上游修改后执行 `node scripts/sync-skills.mjs ../pi-extensions` 同步。
+
 ## 配置(环境变量,与 agent 无关)
 
 ```bash

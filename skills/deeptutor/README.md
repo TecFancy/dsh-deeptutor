@@ -1,9 +1,16 @@
-# DeepTutor Learning Assistant (dsh bundle + SKILL)
+# DeepTutor Learning Assistant (extension / bundle + SKILL)
 
 > This README is the human-facing documentation; `SKILL.md` is the agent-facing instruction file (loaded on demand).
-> Bundle: the `dsh-deeptutor` npm package (tools) ｜ Skill: `skills/deeptutor/SKILL.md` (shipped inside the same package, installed to `~/.dsh/skills/deeptutor/`)
+> The same code ships in two ecosystems — edit in `pi-extensions` first, then sync to `dsh-deeptutor` (see Maintenance).
 
-Bridges **DeepTutor** (open-source personalized tutoring platform) into dsh: combines your **personal knowledge bases** (RAG retrieval) with **authoritative web sources** to generate learning content, self-test questions, and study plans — then archives your notes to a DeepTutor notebook for later review.
+Bridges **DeepTutor** (open-source personalized tutoring platform) into your
+agent: combines your **personal knowledge bases** (RAG retrieval) with
+**authoritative web sources** to generate learning content, self-test
+questions, and study plans — then archives your notes to a DeepTutor notebook
+for later review.
+
+- **pi** — extension `extensions/deeptutor/` (entry: `index.ts`) + skill `skills/deeptutor/SKILL.md` (repo: `TecFancy/pi-extensions`)
+- **dsh** — npm bundle `dsh-deeptutor` (the same TypeScript core) + the same skill, installed to `~/.dsh/skills/deeptutor/` (repo: `TecFancy/dsh-deeptutor`)
 
 ## Features
 
@@ -18,10 +25,17 @@ Bridges **DeepTutor** (open-source personalized tutoring platform) into dsh: com
 
 ## Installation
 
-The `deeptutor` skill ships inside the `dsh-deeptutor` npm package. The bundled
-installer (`scripts/install-profile.mjs` in the package, or
-`pnpm dlx dsh-deeptutor --profile web`) installs the bundle **and** copies this
-skill to `~/.dsh/skills/deeptutor/` (dsh auto-discovers skills there):
+### pi
+
+```bash
+# Install the pi package (extension + SKILL)
+pi install git:github.com/TecFancy/pi-extensions
+
+# Local development: /reload after editing (local path installs are not copied)
+pi install D:/source/personal/pi-extensions
+```
+
+### dsh
 
 ```bash
 # One-shot: bundle + skill, from the published package
@@ -81,26 +95,35 @@ The agent follows the SKILL workflow automatically:
 | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Connection timeout / host resolution failure    | ① Check `DEEPTUTOR_SSH_HOST` is set and SSH passwordless login works ② Is `deeptutor serve` running? (`curl http://127.0.0.1:8001/api/v1/system/status`)                           |
 | Tool returns "No DEEPTUTOR_* env vars detected" | One-time hint on first call; configure per the Configuration section and restart the agent                                                                                         |
-| Local CLI garbled output / crashes              | The extension injects `PYTHONUTF8=1` automatically; verify Python ≥ 3.11 otherwise                                                                                                 |
+| Local CLI garbled output / crashes              | The tools inject `PYTHONUTF8=1` automatically; verify Python ≥ 3.11 otherwise                                                                                                      |
 | DNS resolution fails (Windows)                  | Common on corporate networks: if `nslookup` works but curl/python can't resolve, fix `C:\Windows\System32\drivers\etc\hosts` (when appending entries, always start with a newline) |
 | CLI-only package missing modules                | Official `packaging/deeptutor-cli` has incomplete deps; `pip install <module>` per the error (known: loguru, fastapi)                                                              |
 
 ## FAQ
 
 **Q: Can local and remote be used at the same time?**
-A: Yes. Switching only requires changing env vars (set/remove `DEEPTUTOR_SSH_HOST`); the SKILL and bundle stay unchanged.
+A: Yes. Switching only requires changing env vars (set/remove `DEEPTUTOR_SSH_HOST`); the SKILL and tools stay unchanged.
 
 **Q: What if I change servers or ports?**
-A: Only env vars change (`DEEPTUTOR_SSH_HOST` / `DEEPTUTOR_API_BASE` / remote paths) — never the SKILL or bundle.
+A: Only env vars change (`DEEPTUTOR_SSH_HOST` / `DEEPTUTOR_API_BASE` / remote paths) — never the SKILL or tools.
 
 **Q: Is the knowledge base list hardcoded?**
 A: No. Tools query `deeptutor_kb list` dynamically; new bases are picked up automatically.
 
 **Q: Can other agents (Claude Code / Codex) use it?**
-A: Yes. The SKILL follows the Agent Skills standard and can be linked into `~/.agents/skills/`; the tools themselves are registered by the dsh bundle.
+A: Yes. The SKILL follows the Agent Skills standard and can be linked into `~/.agents/skills/`; the `deeptutor_*` tools are registered by the pi extension or the dsh bundle.
 
 ## Maintenance
 
-- Bundle features: edit the relevant file under `src/` (`index.ts` for tool wiring, `cli-exec.ts`/`http-api.ts`/`turn.ts` for transport logic, `config.ts` for env vars/helpers) → rebuild with `npm run build`
-- SKILL content: edit `skills/deeptutor/SKILL.md` (keep the `name` + `description` frontmatter)
-- Release: bump the version in `package.json`, push a `v*` tag, then `npm publish` (see the repo README)
+Shared skill files (`skills/deeptutor/*`, `skills/html-doc/*`) live **in this
+repo (pi-extensions)** and are kept agent-neutral. `dsh-deeptutor` ships
+byte-identical copies; after editing, sync with:
+
+```bash
+cd ../dsh-deeptutor && node scripts/sync-skills.mjs ../pi-extensions
+```
+
+- pi code: edit the relevant file under `extensions/deeptutor/` (`index.ts` for tool wiring, `cli-exec.ts`/`http-api.ts`/`turn.ts` for transport logic, `config.ts` for env vars/helpers) → `/reload` to verify
+- dsh code: same files under `dsh-deeptutor/src/` → rebuild with `npm run build`
+- Release pi: push a tag to GitHub, then `pi install git:github.com/TecFancy/pi-extensions@<tag>`
+- Release dsh: bump the version in `package.json`, push a `v*` tag → CI publishes to npm

@@ -143,6 +143,10 @@ Two skills ship inside this package (`skills/deeptutor` and
 Installing a newer package version overwrites skill files in place; files not
 shipped by the package are never deleted.
 
+The files under `skills/` are byte-identical copies of the same skills in
+`TecFancy/pi-extensions` (single source of truth, agent-neutral). Sync them
+after upstream edits with `node scripts/sync-skills.mjs ../pi-extensions`.
+
 ## Configuration (env vars, agent-agnostic)
 
 ```bash
