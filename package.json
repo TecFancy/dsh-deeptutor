@@ -1,6 +1,6 @@
 {
   "name": "dsh-deeptutor",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Learning assistant extension for DeepSeek Harness (dsh): DeepTutor tutoring for your agent — deep explanations, self-test questions, learning paths, personal knowledge-base search (RAG), and note archiving (HTTP/WS first, CLI fallback; auto-adapts local/remote deployment).",
   "keywords": [
     "dsh",
