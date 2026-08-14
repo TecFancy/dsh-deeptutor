@@ -93,7 +93,12 @@ npm publish
 
 ## Skills
 
-面向 agent 的工作流位于 `deeptutor` skill,安装于 `~/.dsh/skills/deeptutor/SKILL.md`(dsh 自动发现)。配套的 `html-doc` skill(`~/.dsh/skills/html-doc/`)将学习内容渲染为自包含 HTML 页面;本插件内置同一转换器(`scripts/md-to-html.js`),当 `deeptutor_run` 传入 `html` 路径时自动使用。
+本包携带两个 skill(`skills/deeptutor` 与 `skills/html-doc`),随包安装器每次运行时都会把它们复制到 `<DSH_HOME>/skills/<name>/`(dsh 自动发现)——所以 `pnpm dlx dsh-deeptutor` 一次装齐插件 **和** skill:
+
+- `deeptutor` — 面向 agent 的学习工作流(`~/.dsh/skills/deeptutor/SKILL.md`)
+- `html-doc` — 将学习内容渲染为自包含 HTML 页面(`~/.dsh/skills/html-doc/`);`deeptutor_run` 传入 `html` 路径时,插件内部使用同一转换器(`scripts/md-to-html.js`)
+
+升级包版本时会就地覆盖 skill 文件;包未携带的文件不会被删除。
 
 ## 配置(环境变量,与 agent 无关)
 
@@ -118,6 +123,7 @@ src/                 # TypeScript 源码(开发加载、类型检查)
 lib/                 # 编译产物(发布入口,由 npm run build 生成)
 scripts/md-to-html.js  # 零依赖 Markdown → HTML 转换器
 scripts/install-profile.mjs  # 一键 profile 安装器(以 `dsh-deeptutor` 二进制暴露)
+skills/              # 随包 skill:deeptutor/ + html-doc/(安装到 <DSH_HOME>/skills/)
 cordis.yml           # 开发 overlay:按绝对路径插入 src/index.ts
 cordis.patch.yml     # bundle patch:按包名插入插件
 ```

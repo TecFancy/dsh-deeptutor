@@ -130,11 +130,18 @@ run on plain Node ≥ 20 ESM.
 
 ## Skills
 
-The agent-facing workflow lives in the `deeptutor` skill, installed at
-`~/.dsh/skills/deeptutor/SKILL.md` (auto-discovered by dsh). The companion
-`html-doc` skill (`~/.dsh/skills/html-doc/`) renders study answers to
-self-contained HTML pages; this plugin bundles the same converter under
-`scripts/md-to-html.js` and uses it when `deeptutor_run` gets an `html` path.
+Two skills ship inside this package (`skills/deeptutor` and
+`skills/html-doc`) and the bundled installer copies them to
+`<DSH_HOME>/skills/<name>/` (auto-discovered by dsh) whenever it runs — so
+`pnpm dlx dsh-deeptutor` installs the bundle **and** the skills in one shot:
+
+- `deeptutor` — the agent-facing learning workflow (`~/.dsh/skills/deeptutor/SKILL.md`)
+- `html-doc` — renders study answers to self-contained HTML pages
+  (`~/.dsh/skills/html-doc/`); the bundle uses the same converter
+  (`scripts/md-to-html.js`) when `deeptutor_run` gets an `html` path
+
+Installing a newer package version overwrites skill files in place; files not
+shipped by the package are never deleted.
 
 ## Configuration (env vars, agent-agnostic)
 
@@ -159,6 +166,7 @@ src/                 # TypeScript sources (dev loading, typecheck)
 lib/                 # compiled ESM (published entry, from `npm run build`)
 scripts/md-to-html.js  # zero-dependency Markdown → HTML converter
 scripts/install-profile.mjs  # one-shot profile installer (exposed as the `dsh-deeptutor` binary)
+skills/              # bundled skills: deeptutor/ + html-doc/ (installed to <DSH_HOME>/skills/)
 cordis.yml           # dev overlay: insert src/index.ts by absolute path
 cordis.patch.yml     # bundle patch: insert the package by name
 ```

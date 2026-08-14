@@ -18,13 +18,22 @@
  * Options:
  *   -p, --profile <name>   dsh profile to install into (default: web)
  *   -h, --help             show this help
+ *
+ * Besides installing the bundle, the installer copies the package's bundled
+ * skills (`skills/deeptutor`, `skills/html-doc`) into
+ * `<DSH_HOME>/skills/<name>/`, where dsh auto-discovers them. Existing files
+ * are overwritten; files not shipped by the package are never deleted.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { delimiter, join } from 'node:path';
+import { cpSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { delimiter, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const PKG = 'dsh-deeptutor';
 const NAME = 'dsh-deeptutor-install';
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const SKILLS_DIR = join(SCRIPT_DIR, '..', 'skills');
 
 const USAGE = `usage: dsh-deeptutor [--profile <name>]
 
@@ -186,13 +195,39 @@ function main() {
 }
 
 function finish(profile) {
+  const skills = installSkills();
   console.log(`
 \u2714 ${PKG} installed into profile '${profile}'
-  \u00b7 dependency added and dsh.profile.bundles reconciled (bundle patch auto-registered)
+  \u00b7 dependency added and dsh.profile.bundles reconciled (bundle patch auto-registered)${skills}
 
 next steps:
   1. restart dsh  (the bundle list is resolved at boot)
   2. verify:      ${verifyHint(profile)}`);
+}
+
+/**
+ * Copy the package's bundled skills into <DSH_HOME>/skills/<name>/ (dsh
+ * auto-discovers skills there). Existing files are overwritten in place;
+ * anything not shipped by this package is left untouched. Returns a
+ * human-readable summary line (or '' when there is nothing to install).
+ */
+function installSkills() {
+  if (!existsSync(SKILLS_DIR)) {
+    console.error(`\n${NAME}: warning: no skills/ directory in this package — skill install skipped (old version?)`);
+    return '';
+  }
+  const dshHome = process.env.DSH_HOME || join(homedir(), '.dsh');
+  const installed = [];
+  for (const entry of readdirSync(SKILLS_DIR, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const src = join(SKILLS_DIR, entry.name);
+    const dest = join(dshHome, 'skills', entry.name);
+    mkdirSync(dest, { recursive: true });
+    cpSync(src, dest, { recursive: true, force: true });
+    installed.push(entry.name);
+  }
+  if (installed.length === 0) return '';
+  return `\n  \u00b7 skills installed: ${installed.join(', ')} -> ${join(dshHome, 'skills')}`;
 }
 
 main();
