@@ -16,7 +16,7 @@
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "bin": {
-    "dsh-deeptutor": "./scripts/install-profile.mjs"
+    "dsh-deeptutor": "scripts/install-profile.mjs"
   },
   "exports": {
     ".": {
