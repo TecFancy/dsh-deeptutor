@@ -20,7 +20,7 @@
  *   -h, --help             show this help
  *
  * Besides installing the bundle, the installer copies the package's bundled
- * skills (`skills/deeptutor`, `skills/html-doc`) into
+ * skills (`.agents/skills/deeptutor`, `.agents/skills/html-doc`) into
  * `<DSH_HOME>/skills/<name>/`, where dsh auto-discovers them. Existing files
  * are overwritten; files not shipped by the package are never deleted.
  */
@@ -33,7 +33,7 @@ import { fileURLToPath } from 'node:url';
 const PKG = 'dsh-deeptutor';
 const NAME = 'dsh-deeptutor-install';
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-const SKILLS_DIR = join(SCRIPT_DIR, '..', 'skills');
+const SKILLS_DIR = join(SCRIPT_DIR, '..', '.agents', 'skills');
 
 const USAGE = `usage: dsh-deeptutor [--profile <name>]
 
@@ -213,7 +213,7 @@ next steps:
  */
 function installSkills() {
   if (!existsSync(SKILLS_DIR)) {
-    console.error(`\n${NAME}: warning: no skills/ directory in this package — skill install skipped (old version?)`);
+    console.error(`\n${NAME}: warning: no .agents/skills/ directory in this package — skill install skipped (old version?)`);
     return '';
   }
   const dshHome = process.env.DSH_HOME || join(homedir(), '.dsh');

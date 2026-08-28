@@ -14,7 +14,8 @@
  *     automatically to reach the API; if the tunnel is unavailable, falls back to the SSH CLI.
  *
  * Env config (agent-agnostic): DEEPTUTOR_SSH_HOST / DEEPTUTOR_API_BASE / DEEPTUTOR_LOCAL_BIN /
- * DEEPTUTOR_REMOTE_BIN / DEEPTUTOR_REMOTE_HOME — see src/config.ts and skills/deeptutor/SKILL.md.
+ * DEEPTUTOR_REMOTE_BIN / DEEPTUTOR_REMOTE_HOME — see src/config.ts and
+ * .agents/skills/deeptutor/SKILL.md.
  */
 import type { Context } from "@deepseek-ai/cordis";
 import { defineTool } from "@deepseek-ai/dsh-tools";
