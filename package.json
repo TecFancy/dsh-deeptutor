@@ -36,7 +36,7 @@
     },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./scripts/*": "./scripts/*",
-    "./skills/*": "./skills/*",
+    "./.agents/skills/*": "./.agents/skills/*",
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
@@ -44,7 +44,7 @@
     "lib",
     "src",
     "scripts",
-    "skills",
+    ".agents/skills",
     "docs",
     "cordis.patch.yml",
     "README.md",

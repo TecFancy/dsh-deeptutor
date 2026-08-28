@@ -349,11 +349,11 @@ function main() {
       : "";
 
   const generated = new Date().toISOString().slice(0, 10);
-  // The same converter ships in two locations (skills/html-doc/scripts/ and a
-  // package-root scripts/ copy); resolve the template wherever we are.
+  // The same converter ships in two locations (.agents/skills/html-doc/scripts/
+  // and a package-root scripts/ copy); resolve the template wherever we are.
   const templateCandidates = [
     path.join(import.meta.dirname, "..", "assets", "template.html"),
-    path.join(import.meta.dirname, "..", "skills", "html-doc", "assets", "template.html"),
+    path.join(import.meta.dirname, "..", ".agents", "skills", "html-doc", "assets", "template.html"),
   ];
   const templatePath = templateCandidates.find((p) => fs.existsSync(p));
   if (!templatePath) {
