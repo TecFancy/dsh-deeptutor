@@ -21,7 +21,8 @@
     "url": "https://github.com/TecFancy/dsh-deeptutor/issues"
   },
   "engines": {
-    "node": ">=20.11"
+    "node": ">=20.11",
+    "dsh": "^0.1.0-rc.6 || ^0.2.0-rc.1"
   },
   "type": "module",
   "main": "./lib/index.js",
@@ -64,7 +65,7 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-tools": "^0.1.0-rc.6"
+    "@deepseek-ai/dsh-tools": "^0.1.0-rc.6 || ^0.2.0-rc.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
