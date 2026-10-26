@@ -39,7 +39,7 @@
 
 ## 环境要求
 
-- 可用的 DeepSeek Harness (dsh) 安装。`dsh plugin add` 自动登记 bundle 已在 dsh CLI 0.1.0-rc.6 + pnpm 8.15.6 上验证。
+- 可用的 DeepSeek Harness (dsh) 安装,0.1.0-rc.6 或任意 0.2.x 版本(已在 dsh 0.2.1-rc.2 / 0.2.1-rc.3 上重新验证兼容性)。`dsh plugin add` 自动登记 bundle 已在 dsh CLI 0.1.0-rc.6 + pnpm 8.15.6 上验证。
 - 一个 DeepTutor 部署,二选一:
   - **本地** —— 本机运行 `deeptutor serve`,或 PATH 上有 `deeptutor` CLI(作为回退);
   - **远程** —— DeepTutor 在服务器上,通过自动建立的 SSH 隧道访问(含 SSH CLI 回退)。
