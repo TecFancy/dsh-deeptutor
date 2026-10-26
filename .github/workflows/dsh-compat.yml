@@ -1,0 +1,79 @@
+name: dsh compatibility
+
+# The plugin manifest no longer caps the supported dsh line (issue #5), so this
+# probe is the replacement gate: install the current npm `latest` and `next`
+# hosts, boot the plugin against each, and open an issue when activation breaks.
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: [latest, next]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm install --global pnpm@9
+      - name: Resolve the dsh version on the ${{ matrix.channel }} channel
+        id: dsh
+        run: |
+          version="$(npm view @deepseek-ai/dsh@${{ matrix.channel }} version)"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "probing @deepseek-ai/dsh@${version}"
+      - name: Install that dsh build
+        run: npm install --global "@deepseek-ai/dsh@${{ steps.dsh.outputs.version }}"
+      - name: Boot the plugin against it
+        id: probe
+        run: node scripts/check-dsh-compat.mjs --json | tee "compat-${{ matrix.channel }}.json"
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compat-${{ matrix.channel }}-${{ steps.dsh.outputs.version }}
+          path: compat-${{ matrix.channel }}.json
+          if-no-files-found: ignore
+      - name: Open an issue when activation breaks
+        if: failure() && steps.probe.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANNEL: ${{ matrix.channel }}
+          VERSION: ${{ steps.dsh.outputs.version }}
+        run: |
+          title="dsh-deeptutor activation failed on dsh ${CHANNEL} (${VERSION})"
+          gh label create dsh-compat --color 5319e7 --description "scheduled dsh compatibility probe" --force >/dev/null 2>&1 || true
+          existing="$(gh issue list --state open --label dsh-compat --json number --jq 'length')"
+          if [ "${existing}" != "0" ]; then
+            echo "an open dsh-compat issue already tracks this failure"
+            exit 0
+          fi
+          {
+            echo "The scheduled compatibility probe failed for \`@deepseek-ai/dsh@${VERSION}\` (npm channel: \`${CHANNEL}\`)."
+            echo
+            echo "The manifest declares a floor (\`engines.dsh\`) rather than a ceiling, so users on this release will install the plugin — and the plugin will not activate."
+            echo
+            echo "What to do:"
+            echo "1. Read the probe report attached to the run and reproduce locally with \`node scripts/check-dsh-compat.mjs --dsh-bin <that dsh>\`."
+            echo "2. Fix the incompatibility (the plugin only touches \`name\`, \`inject\`, \`ctx.effect\`, \`ctx.tools.register\` and \`defineTool\`)."
+            echo "3. Release a patch version so affected users get the fix."
+            echo
+            echo "Probe output:"
+            echo '```json'
+            cat "compat-${CHANNEL}.json" 2>/dev/null || echo "{}"
+            echo '```'
+          } > issue-body.md
+          gh issue create --title "${title}" --label dsh-compat --body-file issue-body.md
