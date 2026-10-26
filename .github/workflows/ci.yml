@@ -24,5 +24,5 @@ jobs:
       - name: Verify the two md-to-html.js copies are identical
         shell: bash
         run: |
-          node --input-type=module -e "import fs from 'node:fs'; const a=fs.readFileSync('scripts/md-to-html.js','utf8'); const b=fs.readFileSync('skills/html-doc/scripts/md-to-html.js','utf8'); if(a!==b){ console.error('scripts/md-to-html.js differs from skills/html-doc/scripts/md-to-html.js'); process.exit(1) }"
+          node --input-type=module -e "import fs from 'node:fs'; const a=fs.readFileSync('scripts/md-to-html.js','utf8'); const b=fs.readFileSync('.agents/skills/html-doc/scripts/md-to-html.js','utf8'); if(a!==b){ console.error('scripts/md-to-html.js differs from .agents/skills/html-doc/scripts/md-to-html.js'); process.exit(1) }"
       - run: npm test
