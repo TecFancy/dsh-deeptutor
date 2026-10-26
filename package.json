@@ -1,6 +1,6 @@
 {
   "name": "dsh-deeptutor",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Learning assistant extension for DeepSeek Harness (dsh): DeepTutor tutoring for your agent — deep explanations, self-test questions, learning paths, personal knowledge-base search (RAG), and note archiving (HTTP/WS first, CLI fallback; auto-adapts local/remote deployment).",
   "keywords": [
     "dsh",
@@ -21,7 +21,8 @@
     "url": "https://github.com/TecFancy/dsh-deeptutor/issues"
   },
   "engines": {
-    "node": ">=20.11"
+    "node": ">=20.11",
+    "dsh": "^0.1.0-rc.6 || ^0.2.0-rc.1"
   },
   "type": "module",
   "main": "./lib/index.js",
@@ -36,7 +37,7 @@
     },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./scripts/*": "./scripts/*",
-    "./skills/*": "./skills/*",
+    "./.agents/skills/*": "./.agents/skills/*",
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
@@ -44,7 +45,7 @@
     "lib",
     "src",
     "scripts",
-    "skills",
+    ".agents/skills",
     "docs",
     "cordis.patch.yml",
     "README.md",
@@ -64,12 +65,14 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-tools": "^0.1.0-rc.6"
+    "@deepseek-ai/dsh-tools": "^0.1.0-rc.6 || ^0.2.0-rc.1 || ^0.2.1-rc.1"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-tools": "^0.1.0-rc.6",
+    "@deepseek-ai/cordis": "^4.0.5",
+    "@deepseek-ai/dsh-tools": "^0.2.1-rc.3",
     "@types/node": "^24.0.0",
+    "@types/semver": "^7.8.0",
+    "semver": "^7.8.5",
     "typescript": "^5.9.3"
   }
 }

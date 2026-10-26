@@ -19,9 +19,10 @@ Repo-specific rules for agents working on this repo (dsh-deeptutor).
 
 ## Shared skills — single source of truth
 
-`skills/deeptutor/*` and `skills/html-doc/*` are byte-identical copies of the
-same files in `TecFancy/pi-extensions`. Never edit them here — edit in
-pi-extensions first (keep them agent-neutral), then run:
+`.agents/skills/deeptutor/*` and `.agents/skills/html-doc/*` are
+byte-identical copies of the same files in `TecFancy/pi-extensions`. Never
+edit them here — edit in pi-extensions first (keep them agent-neutral), then
+run:
 
 ```bash
 node scripts/sync-skills.mjs ../pi-extensions

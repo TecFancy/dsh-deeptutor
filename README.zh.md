@@ -39,7 +39,7 @@
 
 ## 环境要求
 
-- 可用的 DeepSeek Harness (dsh) 安装。`dsh plugin add` 自动登记 bundle 已在 dsh CLI 0.1.0-rc.6 + pnpm 8.15.6 上验证。
+- 可用的 DeepSeek Harness (dsh) 安装,0.1.0-rc.6 或任意 0.2.x 版本(已在 dsh 0.2.1-rc.2 / 0.2.1-rc.3 上重新验证兼容性)。`dsh plugin add` 自动登记 bundle 已在 dsh CLI 0.1.0-rc.6 + pnpm 8.15.6 上验证。
 - 一个 DeepTutor 部署,二选一:
   - **本地** —— 本机运行 `deeptutor serve`,或 PATH 上有 `deeptutor` CLI(作为回退);
   - **远程** —— DeepTutor 在服务器上,通过自动建立的 SSH 隧道访问(含 SSH CLI 回退)。
@@ -103,7 +103,7 @@ bundle 清单(`dsh.bundle.patch → cordis.patch.yml`)负责插入插件行;上�
 
 ## Skills
 
-本包携带两个 skill(`skills/deeptutor` 与 `skills/html-doc`),随包安装器每次运行时都会把它们复制到 `<DSH_HOME>/skills/<name>/`(dsh 自动发现)—— 所以 `pnpm dlx dsh-deeptutor` 一次装齐插件 **和** skill:
+本包携带两个 skill(`.agents/skills/deeptutor` 与 `.agents/skills/html-doc`),随包安装器每次运行时都会把它们复制到 `<DSH_HOME>/skills/<name>/`(dsh 自动发现)—— 所以 `pnpm dlx dsh-deeptutor` 一次装齐插件 **和** skill:
 
 - `deeptutor` — 面向 agent 的学习工作流(`~/.dsh/skills/deeptutor/SKILL.md`)
 - `html-doc` — 将学习内容渲染为自包含 HTML 页面(`~/.dsh/skills/html-doc/`);`deeptutor_run` 传入 `html` 路径时,插件内部使用同一转换器(`scripts/md-to-html.js`)
@@ -158,7 +158,7 @@ src/                 # TypeScript 源码(开发加载、类型检查)
 lib/                 # 编译产物(发布入口,由 npm run build 生成)
 scripts/md-to-html.js  # 零依赖 Markdown → HTML 转换器
 scripts/install-profile.mjs  # 一键 profile 安装器(以 `dsh-deeptutor` 二进制暴露)
-skills/              # 随包 skill:deeptutor/ + html-doc/(安装到 <DSH_HOME>/skills/)
+.agents/skills/       # 随包 skill:deeptutor/ + html-doc/(安装到 <DSH_HOME>/skills/)
 cordis.yml           # 开发 overlay:按绝对路径插入 src/index.ts
 cordis.patch.yml     # bundle patch:按包名插入插件
 ```

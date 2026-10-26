@@ -54,8 +54,10 @@ study page, then archived to a notebook):
 
 ## Requirements
 
-- A working DeepSeek Harness (dsh) install. Bundle auto-registration via
-  `dsh plugin add` is verified on dsh CLI 0.1.0-rc.6 + pnpm 8.15.6.
+- A working DeepSeek Harness (dsh) install, 0.1.0-rc.6 or any 0.2.x release
+  (compatibility re-verified on dsh 0.2.1-rc.2 / 0.2.1-rc.3). Bundle
+  auto-registration via `dsh plugin add` is verified on dsh CLI 0.1.0-rc.6 +
+  pnpm 8.15.6.
 - A DeepTutor deployment, either:
   - **Local** — `deeptutor serve` running on this machine, or the `deeptutor`
     CLI on `PATH` (used as fallback);
@@ -146,8 +148,8 @@ row; later patch layers can override or disable it by id.
 
 ## Skills
 
-Two skills ship inside this package (`skills/deeptutor` and
-`skills/html-doc`) and the bundled installer copies them to
+Two skills ship inside this package (`.agents/skills/deeptutor` and
+`.agents/skills/html-doc`) and the bundled installer copies them to
 `<DSH_HOME>/skills/<name>/` (auto-discovered by dsh) whenever it runs — so
 `pnpm dlx dsh-deeptutor` installs the bundle **and** the skills in one shot:
 
@@ -159,9 +161,10 @@ Two skills ship inside this package (`skills/deeptutor` and
 Installing a newer package version overwrites skill files in place; files not
 shipped by the package are never deleted.
 
-The files under `skills/` are byte-identical copies of the same skills in
-`TecFancy/pi-extensions` (single source of truth, agent-neutral). Sync them
-after upstream edits with `node scripts/sync-skills.mjs ../pi-extensions`.
+The files under `.agents/skills/` are byte-identical copies of the same
+skills in `TecFancy/pi-extensions` (single source of truth, agent-neutral).
+Sync them after upstream edits with
+`node scripts/sync-skills.mjs ../pi-extensions`.
 
 ## Configuration (env vars, agent-agnostic)
 
@@ -215,7 +218,7 @@ src/                 # TypeScript sources (dev loading, typecheck)
 lib/                 # compiled ESM (published entry, from `npm run build`)
 scripts/md-to-html.js  # zero-dependency Markdown → HTML converter
 scripts/install-profile.mjs  # one-shot profile installer (exposed as the `dsh-deeptutor` binary)
-skills/              # bundled skills: deeptutor/ + html-doc/ (installed to <DSH_HOME>/skills/)
+.agents/skills/       # bundled skills: deeptutor/ + html-doc/ (installed to <DSH_HOME>/skills/)
 cordis.yml           # dev overlay: insert src/index.ts by absolute path
 cordis.patch.yml     # bundle patch: insert the package by name
 ```

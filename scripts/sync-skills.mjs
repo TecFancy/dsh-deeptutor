@@ -16,14 +16,15 @@ const piRoot = resolve(process.argv[2] ?? join(here, "..", "pi-extensions"));
 
 // [pi source, this-repo destination]
 // The bundle uses the root scripts/ copy at runtime (src/html-render.ts);
-// the skill copy ships inside the package. Both must stay identical.
+// the skill copy ships inside the package under .agents/skills/. Both must
+// stay identical.
 const FILES = [
-  ["skills/deeptutor/SKILL.md", "skills/deeptutor/SKILL.md"],
-  ["skills/deeptutor/README.md", "skills/deeptutor/README.md"],
-  ["skills/html-doc/SKILL.md", "skills/html-doc/SKILL.md"],
-  ["skills/html-doc/assets/template.html", "skills/html-doc/assets/template.html"],
+  ["skills/deeptutor/SKILL.md", ".agents/skills/deeptutor/SKILL.md"],
+  ["skills/deeptutor/README.md", ".agents/skills/deeptutor/README.md"],
+  ["skills/html-doc/SKILL.md", ".agents/skills/html-doc/SKILL.md"],
+  ["skills/html-doc/assets/template.html", ".agents/skills/html-doc/assets/template.html"],
   ["skills/html-doc/scripts/md-to-html.js", "scripts/md-to-html.js"],
-  ["skills/html-doc/scripts/md-to-html.js", "skills/html-doc/scripts/md-to-html.js"],
+  ["skills/html-doc/scripts/md-to-html.js", ".agents/skills/html-doc/scripts/md-to-html.js"],
 ];
 
 let failures = 0;
