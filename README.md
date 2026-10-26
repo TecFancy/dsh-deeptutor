@@ -54,8 +54,10 @@ study page, then archived to a notebook):
 
 ## Requirements
 
-- A working DeepSeek Harness (dsh) install. Bundle auto-registration via
-  `dsh plugin add` is verified on dsh CLI 0.1.0-rc.6 + pnpm 8.15.6.
+- A working DeepSeek Harness (dsh) install, 0.1.0-rc.6 or any 0.2.x release
+  (compatibility re-verified on dsh 0.2.1-rc.2 / 0.2.1-rc.3). Bundle
+  auto-registration via `dsh plugin add` is verified on dsh CLI 0.1.0-rc.6 +
+  pnpm 8.15.6.
 - A DeepTutor deployment, either:
   - **Local** — `deeptutor serve` running on this machine, or the `deeptutor`
     CLI on `PATH` (used as fallback);
