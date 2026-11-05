@@ -59,9 +59,10 @@ test("parseCmdWrapper refuses wrappers that do more than forward %*", () => {
 });
 
 test("findOnPath follows PATH order and PATHEXT order", () => {
-  const present = new Set([join("C:\\b", "deeptutor.cmd"), join("C:\\c", "deeptutor.exe")]);
-  const env = { PATH: ["C:\\a", "C:\\b", "C:\\c"].join(process.platform === "win32" ? ";" : ":"), PATHEXT: ".EXE;.CMD" };
-  assert.equal(findOnPath("deeptutor", env, (p) => present.has(p)), join("C:\\b", "deeptutor.cmd"));
+  // findOnPath always applies Windows rules (";" separator, "\" joins), on every host
+  const present = new Set(["C:\\b\\deeptutor.cmd", "C:\\c\\deeptutor.exe"]);
+  const env = { PATH: "C:\\a;C:\\b;C:\\c", PATHEXT: ".EXE;.CMD" };
+  assert.equal(findOnPath("deeptutor", env, (p) => present.has(p)), "C:\\b\\deeptutor.cmd");
   assert.equal(findOnPath("missing", env, (p) => present.has(p)), undefined);
 });
 

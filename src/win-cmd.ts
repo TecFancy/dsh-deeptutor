@@ -13,7 +13,7 @@
  * resolveLocalCommand reports that instead of silently truncating the prompt.
  */
 import { existsSync, readFileSync } from "node:fs";
-import { delimiter, extname, join, win32 } from "node:path";
+import { extname, win32 } from "node:path";
 
 export interface LocalCommand {
   file: string;
@@ -83,10 +83,11 @@ export function findOnPath(
   exists: (p: string) => boolean = existsSync,
 ): string | undefined {
   const exts = (env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean);
-  const dirs = (env.PATH ?? env.Path ?? "").split(delimiter).filter(Boolean);
+  // Windows path rules regardless of the host, so this also behaves the same in Linux CI.
+  const dirs = (env.PATH ?? env.Path ?? "").split(win32.delimiter).filter(Boolean);
   for (const dir of dirs) {
     for (const ext of exts) {
-      const candidate = join(dir.replace(/^"|"$/g, ""), name + ext.toLowerCase());
+      const candidate = win32.join(dir.replace(/^"|"$/g, ""), name + ext.toLowerCase());
       if (exists(candidate)) return candidate;
     }
   }
