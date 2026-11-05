@@ -6,8 +6,6 @@
 
 只要对 agent 说 *"给我讲讲 async/await"*,它就能跑一次 deep-solve,把答案渲染成可在浏览器打开的自包含 HTML 学习页,再把摘要归档进你的笔记本。
 
-本扩展由 pi 编码 agent 扩展迁移而来(`TecFancy/pi-extensions`,`extensions/deeptutor` + `skills/deeptutor`)。
-
 ## 它带来什么
 
 三个 agent 可见工具,当你请求学习帮助时由模型调用:
@@ -41,8 +39,10 @@
 
 - 可用的 DeepSeek Harness (dsh) 安装,0.1.0-rc.6 或更新版本。清单里只写下限不写上限,新版本 dsh 发布后不会再在安装时被拒绝;替代办法是定时拿 npm 上 `latest` 和 `next` 两个通道的宿主各冷启动一次,插件起不来就开 issue。`dsh plugin add` 自动登记 bundle 已在 dsh CLI 0.1.0-rc.6、0.2.1-rc.2 与 0.2.1-rc.3 上验证。
 - 一个 DeepTutor 部署,二选一:
-  - **本地** —— 本机运行 `deeptutor serve`,或 PATH 上有 `deeptutor` CLI(作为回退);
-  - **远程** —— DeepTutor 在服务器上,通过自动建立的 SSH 隧道访问(含 SSH CLI 回退)。
+  - **本地** —— 本机装有 `deeptutor` CLI(在 PATH 上,或由 `DEEPTUTOR_LOCAL_BIN` 指定);
+  - **远程** —— DeepTutor 装在一台能免密 SSH 登录的服务器上,插件经 SSH 调用服务器上的 CLI。
+
+  已在 DeepTutor 1.7.1 上验证。从 1.7 起,`kb`、`notebook` 命令和大部分 capability 由可选模块提供,用 `deeptutor module list` 确认要用的模块已安装并启用。
 
 ## 安装到 profile(bundle 方式)
 
@@ -79,7 +79,7 @@ dsh --profile web --dump-config | grep dsh-deeptutor
 
 ```json
 {
-  "dependencies": { "dsh-deeptutor": "^0.1.0" },
+  "dependencies": { "dsh-deeptutor": "^0.2.0" },
   "dsh": {
     "profile": { "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-deeptutor"] }
   }
@@ -110,27 +110,29 @@ bundle 清单(`dsh.bundle.patch → cordis.patch.yml`)负责插入插件行;上�
 
 升级包版本时会就地覆盖 skill 文件;包未携带的文件不会被删除。
 
-`skills/` 下的文件与 `TecFancy/pi-extensions` 中的同名技能逐字节一致(以 pi 仓库为唯一来源,保持 agent 中立)。上游修改后执行 `node scripts/sync-skills.mjs ../pi-extensions` 同步。
+skill 就在本仓库的 `.agents/skills/` 下维护。
 
 ## 配置(环境变量,与 agent 无关)
 
 ```bash
-# 远程部署(DeepTutor 在服务器上,通过 SSH 隧道访问)
+# 远程部署(DeepTutor 在服务器上,经 SSH 调用)
 export DEEPTUTOR_SSH_HOST="tencent-cloud"           # SSH 主机别名(设置 = 远程模式)
-export DEEPTUTOR_API_BASE="http://127.0.0.1:8001"   # 本地隧道地址
 export DEEPTUTOR_REMOTE_BIN="/home/ubuntu/my-deeptutor/.venv/bin/deeptutor"
 export DEEPTUTOR_REMOTE_HOME="/home/ubuntu/my-deeptutor"
 
 # 本地部署 —— 不要设置 DEEPTUTOR_SSH_HOST
-# export DEEPTUTOR_API_BASE="http://127.0.0.1:8001"  # 本地 serve 端口
 # export DEEPTUTOR_LOCAL_BIN="deeptutor"             # 本地 CLI 路径(默认: PATH 上的 deeptutor)
 ```
 
 修改环境变量后需重启 dsh。
 
+**Windows 本地模式:** 把 `DEEPTUTOR_LOCAL_BIN` 指向 `deeptutor.exe`(pip/venv 安装时是 `<venv>\Scripts\deeptutor.exe`)。`.cmd`/`.bat` 包装脚本也能用:只把 `%*` 转给某个 `.exe` 的包装脚本会被绕过,直接运行那个 `.exe`;其他包装脚本经 `cmd.exe` 运行,而 `cmd.exe` 传不了多行提示词,这类调用会报错并提示改用 `.exe`。
+
 ## 工作原理
 
-插件自动适配部署模式:若 DeepTutor API 可达(本地 `serve`,或经隧道的远程服务器),学习回合走 HTTP/WebSocket;否则回退到 CLI —— 本地的 `deeptutor` 二进制,或经 SSH 的远程二进制。远程模式按需启动 SSH 隧道,插件卸载时自动拆除。
+每次工具调用都走 DeepTutor CLI:本地的 `deeptutor` 二进制,或在设置了 `DEEPTUTOR_SSH_HOST` 时经 SSH 调用远程二进制。本机不需要能访问 `deeptutor serve`。
+
+早期版本先尝试 HTTP/WebSocket API(经 SSH 隧道访问 `/api/v1/...`),失败后才回退到 CLI。DeepTutor 1.7 的这些接口换了路径并要求登录,探测总是失败,每次调用都要先等约 30 秒才轮到 CLI。这条路径已移除,`DEEPTUTOR_API_BASE` 不再读取。
 
 ## 源码开发(无需发布)
 
@@ -163,4 +165,4 @@ cordis.yml           # 开发 overlay:按绝对路径插入 src/index.ts
 cordis.patch.yml     # bundle patch:按包名插入插件
 ```
 
-`src/index.ts` 注册工具;`config.ts` 环境配置;`cli-exec.ts` 本地/SSH CLI 执行;`http-api.ts` API 探测 + SSH 隧道;`turn.ts` 单次学习回合(WebSocket / CLI 事件折叠与格式化);`html-render.ts` 答案 → 自包含 HTML。
+`src/index.ts` 注册工具;`config.ts` 环境配置;`cli-exec.ts` 本地/SSH CLI 执行;`win-cmd.ts` 在 Windows 上启动 `.cmd`/`.bat` 形式的 CLI;`turn.ts` 单次学习回合(CLI JSONL 事件折叠与格式化);`html-render.ts` 答案 → 自包含 HTML。
