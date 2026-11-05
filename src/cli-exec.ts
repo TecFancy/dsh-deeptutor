@@ -7,6 +7,7 @@ import { rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DEEPTUTOR_BIN, DEEPTUTOR_HOME, LOCAL_BIN, SSH_HOST } from "./config.ts";
+import { resolveLocalCommand } from "./win-cmd.ts";
 
 export interface CliResult {
   stdout: string;
@@ -63,7 +64,12 @@ const NOTE_STEP_TIMEOUT_MS = 30_000;
 function execFileResolved(
   file: string,
   args: string[],
-  opts: { signal?: AbortSignal; timeoutMs?: number; env?: Record<string, string> } = {},
+  opts: {
+    signal?: AbortSignal;
+    timeoutMs?: number;
+    env?: Record<string, string>;
+    windowsVerbatimArguments?: boolean;
+  } = {},
 ): Promise<CliResult> {
   return new Promise((resolve) => {
     const child = execFile(
@@ -72,6 +78,7 @@ function execFileResolved(
       {
         env: opts.env ? { ...process.env, ...opts.env } : process.env,
         windowsHide: true,
+        windowsVerbatimArguments: opts.windowsVerbatimArguments,
         timeout: opts.timeoutMs,
       },
       (err, stdout, stderr) => {
@@ -145,12 +152,16 @@ export async function runCli(
   if (SSH_HOST) {
     return sshExec([DEEPTUTOR_BIN, ...args], opts);
   }
-  // Local mode: execute directly (force UTF-8 output to avoid Windows cp1252 console crashes)
-  const res = await execFileResolved(
-    LOCAL_BIN,
-    args,
-    { signal: opts.signal, timeoutMs: opts.timeoutMs, env: { PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" } },
-  );
+  // Local mode: execute directly (force UTF-8 output to avoid Windows cp1252 console crashes).
+  // On Windows a .cmd/.bat LOCAL_BIN needs special handling (spawn EINVAL otherwise, issue #8).
+  const cmd = resolveLocalCommand(LOCAL_BIN, args);
+  if (cmd.error) return { stdout: "", stderr: cmd.error, code: 1, killed: false };
+  const res = await execFileResolved(cmd.file, cmd.args, {
+    signal: opts.signal,
+    timeoutMs: opts.timeoutMs,
+    env: { PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" },
+    windowsVerbatimArguments: cmd.windowsVerbatimArguments,
+  });
   const out = res.stdout ?? "";
   const [stdout, stderr] = out.split("__DT_STDERR__");
   return {
