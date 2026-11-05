@@ -5,7 +5,6 @@ import {
   cliRunTurn,
   collectEvent,
   fmtTurnResult,
-  wsRunTurn,
   type RunParams,
   type TurnResult,
 } from "../src/turn.ts";
@@ -64,122 +63,9 @@ test("fmtTurnResult reports errors and missing answers", () => {
   assert.match(out, /\(no answer\)/);
 });
 
-// ---------- wsRunTurn (WebSocket path) ----------
+// ---------- cliRunTurn (CLI transport) ----------
 
-/** Minimal injectable WebSocket stand-in: tests drive the lifecycle by hand. */
-class FakeWebSocket {
-  static instances: FakeWebSocket[] = [];
-  url: string;
-  sent: string[] = [];
-  closed = false;
-  onopen: (() => void) | null = null;
-  onmessage: ((ev: { data: string }) => void) | null = null;
-  onerror: (() => void) | null = null;
-  onclose: (() => void) | null = null;
-  constructor(url: string) {
-    this.url = url;
-    FakeWebSocket.instances.push(this);
-  }
-  send(data: string) {
-    this.sent.push(data);
-  }
-  close() {
-    this.closed = true;
-  }
-  open() {
-    this.onopen?.();
-  }
-  message(event: unknown) {
-    this.onmessage?.({ data: JSON.stringify(event) });
-  }
-  error() {
-    this.onerror?.();
-  }
-  closeEvent() {
-    this.onclose?.();
-  }
-}
-
-const setupWs = () => {
-  (globalThis as any).WebSocket = FakeWebSocket;
-  FakeWebSocket.instances = [];
-};
-
-const wsParams: RunParams = { prompt: "explain X", capability: "deep_solve" };
-
-test("wsRunTurn sends a start_turn frame with the params", async () => {
-  setupWs();
-  const p = wsRunTurn(wsParams, 5000);
-  const ws = FakeWebSocket.instances[0];
-  ws.open();
-  const frame = JSON.parse(ws.sent[0]);
-  assert.equal(frame.type, "start_turn");
-  assert.equal(frame.content, "explain X");
-  assert.equal(frame.capability, "deep_solve");
-  assert.deepEqual(frame.tools, []);
-  assert.deepEqual(frame.knowledge_bases, []);
-  ws.message({ type: "done" });
-  await p;
-});
-
-test("wsRunTurn resolves with the accumulated state on done", async () => {
-  setupWs();
-  const p = wsRunTurn(wsParams, 5000);
-  const ws = FakeWebSocket.instances[0];
-  ws.open();
-  ws.message({ type: "content", content: "Hello " });
-  ws.message({ type: "content", content: "world" });
-  ws.message({ type: "tool_call", content: "rag" });
-  ws.message({ type: "session_meta", metadata: { title: "T" }, session_id: "s1" });
-  ws.message({ type: "done" });
-  const state = await p;
-  assert.equal(state.answer, "Hello world");
-  assert.deepEqual(state.toolCalls, ["rag"]);
-  assert.equal(state.title, "T");
-  assert.equal(state.sessionId, "s1");
-  assert.ok(ws.closed, "socket should be closed after done");
-});
-
-test("wsRunTurn rejects on connection error and unexpected close", async () => {
-  setupWs();
-  const errored = wsRunTurn(wsParams, 5000);
-  FakeWebSocket.instances[0].open();
-  FakeWebSocket.instances[0].error();
-  await assert.rejects(errored, /connection error/);
-
-  setupWs();
-  const closed = wsRunTurn(wsParams, 5000);
-  FakeWebSocket.instances[0].open();
-  FakeWebSocket.instances[0].closeEvent();
-  await assert.rejects(closed, /closed unexpectedly/);
-});
-
-test("wsRunTurn rejects on timeout when the server never sends done", async () => {
-  setupWs();
-  const p = wsRunTurn(wsParams, 50);
-  FakeWebSocket.instances[0].open();
-  await assert.rejects(p, /WebSocket timeout/);
-});
-
-test("wsRunTurn rejects immediately when the signal is already aborted", async () => {
-  setupWs();
-  const controller = new AbortController();
-  controller.abort();
-  await assert.rejects(wsRunTurn(wsParams, 5000, controller.signal), /Aborted/);
-});
-
-test("wsRunTurn rejects on abort mid-flight", async () => {
-  setupWs();
-  const controller = new AbortController();
-  const p = wsRunTurn(wsParams, 5000, controller.signal);
-  const ws = FakeWebSocket.instances[0];
-  ws.open();
-  controller.abort();
-  await assert.rejects(p, /Aborted/);
-  assert.ok(ws.closed, "socket should be closed after abort");
-});
-
-// ---------- cliRunTurn (CLI fallback path) ----------
+const runParams: RunParams = { prompt: "explain X", capability: "deep_solve" };
 
 test("buildRunArgs assembles kbs/tools/session/language flags", () => {
   const args = buildRunArgs({
@@ -233,7 +119,7 @@ test("cliRunTurn reports cancellation when the CLI run was killed by abort", asy
     await gate;
     return { stdout: "", stderr: "x", code: -1, killed: true };
   };
-  const pending = cliRunTurn(wsParams, 1000, controller.signal, fakeRun as any);
+  const pending = cliRunTurn(runParams, 1000, controller.signal, fakeRun as any);
   controller.abort();
   release();
   await assert.rejects(pending, /Aborted/);
@@ -241,13 +127,13 @@ test("cliRunTurn reports cancellation when the CLI run was killed by abort", asy
 
 test("cliRunTurn reports timeout when killed without an abort signal", async () => {
   const fakeRun = async () => ({ stdout: "", stderr: "x", code: -1, killed: true });
-  await assert.rejects(cliRunTurn(wsParams, 1000, undefined, fakeRun as any), /timed out/);
+  await assert.rejects(cliRunTurn(runParams, 1000, undefined, fakeRun as any), /timed out/);
 });
 
 test("cliRunTurn throws the CLI error on non-zero exit", async () => {
   const fakeRun = async () => ({ stdout: "", stderr: "boom", code: 2, killed: false });
   await assert.rejects(
-    cliRunTurn(wsParams, 1000, undefined, fakeRun as any),
+    cliRunTurn(runParams, 1000, undefined, fakeRun as any),
     /CLI exit=2: boom/,
   );
 });
@@ -262,7 +148,7 @@ test("cliRunTurn collects JSONL events into the turn state", async () => {
     code: 0,
     killed: false,
   });
-  const state = await cliRunTurn(wsParams, 1000, undefined, fakeRun as any);
+  const state = await cliRunTurn(runParams, 1000, undefined, fakeRun as any);
   assert.equal(state.answer, "A");
   assert.equal(state.title, "T");
   assert.equal(state.sessionId, "s");
