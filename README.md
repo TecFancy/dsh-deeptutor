@@ -180,6 +180,13 @@ export DEEPTUTOR_REMOTE_HOME="/home/ubuntu/my-deeptutor"
 
 Restart dsh after changing env vars.
 
+**Windows, local mode:** point `DEEPTUTOR_LOCAL_BIN` at `deeptutor.exe`
+(for a pip/venv install: `<venv>\Scripts\deeptutor.exe`). A `.cmd`/`.bat`
+wrapper also works: one that only forwards `%*` to an `.exe` is bypassed and
+the `.exe` is run directly; any other wrapper runs through `cmd.exe`, which
+cannot pass multi-line prompts, so those calls fail with a hint to use the
+`.exe`.
+
 ## How it works
 
 Every tool call drives the DeepTutor CLI: the local `deeptutor` binary, or the
@@ -226,6 +233,6 @@ cordis.patch.yml     # bundle patch: insert the package by name
 ```
 
 `src/index.ts` registers the tools; `config.ts` holds env config;
-`cli-exec.ts` local/SSH CLI execution;
+`cli-exec.ts` local/SSH CLI execution; `win-cmd.ts` starting a `.cmd`/`.bat` CLI on Windows;
 `turn.ts` one learning turn (CLI JSONL event folding + formatting);
 `html-render.ts` answer → self-contained HTML.

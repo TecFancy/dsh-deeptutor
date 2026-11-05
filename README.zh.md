@@ -126,6 +126,8 @@ export DEEPTUTOR_REMOTE_HOME="/home/ubuntu/my-deeptutor"
 
 修改环境变量后需重启 dsh。
 
+**Windows 本地模式:** 把 `DEEPTUTOR_LOCAL_BIN` 指向 `deeptutor.exe`(pip/venv 安装时是 `<venv>\Scripts\deeptutor.exe`)。`.cmd`/`.bat` 包装脚本也能用:只把 `%*` 转给某个 `.exe` 的包装脚本会被绕过,直接运行那个 `.exe`;其他包装脚本经 `cmd.exe` 运行,而 `cmd.exe` 传不了多行提示词,这类调用会报错并提示改用 `.exe`。
+
 ## 工作原理
 
 每次工具调用都走 DeepTutor CLI:本地的 `deeptutor` 二进制,或在设置了 `DEEPTUTOR_SSH_HOST` 时经 SSH 调用远程二进制。本机不需要能访问 `deeptutor serve`。
@@ -163,4 +165,4 @@ cordis.yml           # 开发 overlay:按绝对路径插入 src/index.ts
 cordis.patch.yml     # bundle patch:按包名插入插件
 ```
 
-`src/index.ts` 注册工具;`config.ts` 环境配置;`cli-exec.ts` 本地/SSH CLI 执行;`turn.ts` 单次学习回合(CLI JSONL 事件折叠与格式化);`html-render.ts` 答案 → 自包含 HTML。
+`src/index.ts` 注册工具;`config.ts` 环境配置;`cli-exec.ts` 本地/SSH CLI 执行;`win-cmd.ts` 在 Windows 上启动 `.cmd`/`.bat` 形式的 CLI;`turn.ts` 单次学习回合(CLI JSONL 事件折叠与格式化);`html-render.ts` 答案 → 自包含 HTML。
