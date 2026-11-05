@@ -12,9 +12,6 @@ Ask the agent *"teach me async/await"* and it can run a deep-solve, render the
 answer as a self-contained HTML study page you can open in a browser, and
 archive a summary into your notebook.
 
-Migrated from the pi coding-agent extension
-(`TecFancy/pi-extensions`, `extensions/deeptutor` + `skills/deeptutor`).
-
 ## What it adds
 
 Three agent-facing tools that the model uses whenever you ask for learning help:
@@ -61,10 +58,14 @@ study page, then archived to a notebook):
   activation breaks. Bundle auto-registration via `dsh plugin add` was verified
   on dsh CLI 0.1.0-rc.6, 0.2.1-rc.2 and 0.2.1-rc.3.
 - A DeepTutor deployment, either:
-  - **Local** — `deeptutor serve` running on this machine, or the `deeptutor`
-    CLI on `PATH` (used as fallback);
-  - **Remote** — DeepTutor on a server, reached through an auto-started SSH
-    tunnel (with SSH CLI fallback).
+  - **Local** — the `deeptutor` CLI installed on this machine (on `PATH`, or
+    pointed to by `DEEPTUTOR_LOCAL_BIN`);
+  - **Remote** — DeepTutor installed on a server you can reach with
+    passwordless SSH; the plugin runs the server's CLI over SSH.
+
+  Tested against DeepTutor 1.7.1. Since 1.7 the `kb` and `notebook` commands
+  and most capabilities come from optional modules; check that the ones you
+  use are installed and enabled with `deeptutor module list`.
 
 ## Install into a profile (bundle)
 
@@ -163,34 +164,40 @@ Two skills ship inside this package (`.agents/skills/deeptutor` and
 Installing a newer package version overwrites skill files in place; files not
 shipped by the package are never deleted.
 
-The files under `.agents/skills/` are byte-identical copies of the same
-skills in `TecFancy/pi-extensions` (single source of truth, agent-neutral).
-Sync them after upstream edits with
-`node scripts/sync-skills.mjs ../pi-extensions`.
+The skills are maintained in this repo under `.agents/skills/`.
 
 ## Configuration (env vars, agent-agnostic)
 
 ```bash
-# Remote deployment (DeepTutor on a server, reached through an SSH tunnel)
+# Remote deployment (DeepTutor on a server, driven over SSH)
 export DEEPTUTOR_SSH_HOST="tencent-cloud"           # SSH host alias (set = remote mode)
-export DEEPTUTOR_API_BASE="http://127.0.0.1:8001"   # local tunnel address
 export DEEPTUTOR_REMOTE_BIN="/home/ubuntu/my-deeptutor/.venv/bin/deeptutor"
 export DEEPTUTOR_REMOTE_HOME="/home/ubuntu/my-deeptutor"
 
 # Local deployment — leave DEEPTUTOR_SSH_HOST unset
-# export DEEPTUTOR_API_BASE="http://127.0.0.1:8001"  # local serve port
 # export DEEPTUTOR_LOCAL_BIN="deeptutor"             # local CLI path (default: deeptutor on PATH)
 ```
 
 Restart dsh after changing env vars.
 
+**Windows, local mode:** point `DEEPTUTOR_LOCAL_BIN` at `deeptutor.exe`
+(for a pip/venv install: `<venv>\Scripts\deeptutor.exe`). A `.cmd`/`.bat`
+wrapper also works: one that only forwards `%*` to an `.exe` is bypassed and
+the `.exe` is run directly; any other wrapper runs through `cmd.exe`, which
+cannot pass multi-line prompts, so those calls fail with a hint to use the
+`.exe`.
+
 ## How it works
 
-The plugin auto-detects the deployment: if a DeepTutor API is reachable (local
-`serve`, or a remote server via tunnel), learning turns run over HTTP/WebSocket;
-otherwise it falls back to the CLI — the local `deeptutor` binary, or the remote
-binary over SSH. Remote mode starts the SSH tunnel on demand and tears it down
-when the plugin unloads.
+Every tool call drives the DeepTutor CLI: the local `deeptutor` binary, or the
+remote binary over SSH when `DEEPTUTOR_SSH_HOST` is set. `deeptutor serve` does
+not need to be reachable from this machine.
+
+Earlier versions tried the HTTP/WebSocket API first (`/api/v1/...` through an
+SSH tunnel) and only then fell back to the CLI. DeepTutor 1.7 serves those
+routes under different paths and behind a login, so the probe always failed
+and each call waited about 30 seconds before reaching the CLI. That path was
+removed; `DEEPTUTOR_API_BASE` is no longer read.
 
 ## Develop against a checkout (no publish needed)
 
@@ -226,6 +233,6 @@ cordis.patch.yml     # bundle patch: insert the package by name
 ```
 
 `src/index.ts` registers the tools; `config.ts` holds env config;
-`cli-exec.ts` local/SSH CLI execution; `http-api.ts` API probing + SSH tunnel;
-`turn.ts` one learning turn (WebSocket / CLI event folding + formatting);
+`cli-exec.ts` local/SSH CLI execution; `win-cmd.ts` starting a `.cmd`/`.bat` CLI on Windows;
+`turn.ts` one learning turn (CLI JSONL event folding + formatting);
 `html-render.ts` answer → self-contained HTML.

@@ -17,16 +17,15 @@ Repo-specific rules for agents working on this repo (dsh-deeptutor).
    `lib/` from the installed package; `lib/` is gitignored, `prepack`
    rebuilds it before publish).
 
-## Shared skills — single source of truth
+## Skills
 
-`.agents/skills/deeptutor/*` and `.agents/skills/html-doc/*` are
-byte-identical copies of the same files in `TecFancy/pi-extensions`. Never
-edit them here — edit in pi-extensions first (keep them agent-neutral), then
-run:
+`.agents/skills/deeptutor/*` and `.agents/skills/html-doc/*` are maintained
+in this repo; edit them here directly. There is no upstream copy to sync from.
 
-```bash
-node scripts/sync-skills.mjs ../pi-extensions
-```
+- Keep `SKILL.md` in step with the tools: when a tool's parameters or
+  behaviour change, update the skill in the same change.
+- `scripts/md-to-html.js` and `.agents/skills/html-doc/scripts/md-to-html.js`
+  must stay identical (CI checks it). Edit one, copy it over the other.
 
 ## Releases
 
@@ -36,5 +35,5 @@ node scripts/sync-skills.mjs ../pi-extensions
 
 ## Branch model
 
-- Daily work happens on `development`; `main` only receives PRs/merges
-  (mirrors the pi-extensions repo). Never commit to `main` directly.
+- Daily work happens on `development`; `main` only receives PRs/merges.
+  Never commit to `main` directly.
