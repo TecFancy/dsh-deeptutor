@@ -1,8 +1,8 @@
 /**
- * DeepTutor bridge: one learning "turn" — running a capability over WebSocket (HTTP mode)
- * or the CLI (fallback), and shared JSONL/WS event parsing + result formatting.
+ * DeepTutor bridge: one learning "turn" — running a capability through the deeptutor CLI
+ * (local or over SSH), JSONL event parsing and result formatting.
  */
-import { API_BASE, truncate } from "./config.ts";
+import { truncate } from "./config.ts";
 import { runCli } from "./cli-exec.ts";
 
 export interface TurnResult {
@@ -13,7 +13,7 @@ export interface TurnResult {
   title?: string;
 }
 
-/** Fields both wsRunTurn and cliRunTurn read off the deeptutor_run tool params. */
+/** Fields cliRunTurn reads off the deeptutor_run tool params. */
 export interface RunParams {
   prompt: string;
   capability: string;
@@ -24,7 +24,7 @@ export interface RunParams {
   config?: Record<string, unknown>;
 }
 
-/** Fold one event (WS or CLI JSONL) into the running turn state. Exported for unit tests. */
+/** Fold one CLI JSONL event into the running turn state. Exported for unit tests. */
 export function collectEvent(state: TurnResult, e: any) {
   if (e.type === "content" && typeof e.content === "string") state.answer += e.content;
   else if (e.type === "result" && typeof e.metadata?.response === "string")
@@ -37,95 +37,6 @@ export function collectEvent(state: TurnResult, e: any) {
     );
   else if (e.type === "session_meta" && e.metadata?.title) state.title = e.metadata.title;
   if (!state.sessionId && typeof e.session_id === "string") state.sessionId = e.session_id;
-}
-
-/** Execute one turn over WebSocket (streaming). */
-export function wsRunTurn(
-  params: RunParams,
-  timeoutMs: number,
-  signal?: AbortSignal,
-): Promise<TurnResult> {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) return reject(new Error("Aborted"));
-    const WSImpl: any = (globalThis as any).WebSocket;
-    if (!WSImpl) return reject(new Error("WebSocket is not available in this environment"));
-    const ws = new WSImpl(`${API_BASE.replace(/^http/, "ws")}/api/v1/ws`);
-    let settled = false;
-    const state: TurnResult = { answer: "", errors: [], toolCalls: [] };
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const finish = (fn: () => void) => {
-      if (settled) return;
-      settled = true;
-      if (timer) clearTimeout(timer);
-      signal?.removeEventListener("abort", onAbort);
-      fn();
-    };
-    timer = setTimeout(() => {
-      finish(() => {
-        try {
-          ws.close();
-        } catch {}
-        reject(new Error(`WebSocket timeout (${Math.round(timeoutMs / 1000)}s)`));
-      });
-    }, timeoutMs);
-    const onAbort = () => {
-      finish(() => {
-        try {
-          ws.close();
-        } catch {}
-        reject(new Error("Aborted"));
-      });
-    };
-    signal?.addEventListener("abort", onAbort, { once: true });
-    ws.onopen = () => {
-      ws.send(
-        JSON.stringify({
-          type: "start_turn",
-          content: params.prompt,
-          capability: params.capability,
-          session_id: params.session_id ?? null,
-          tools: params.tools ?? [],
-          knowledge_bases: params.kbs ?? [],
-          language: params.language ?? "en",
-          config: params.config ?? {},
-          notebook_references: [],
-          history_references: [],
-          attachments: [],
-          skills: [],
-        }),
-      );
-    };
-    ws.onmessage = (ev: any) => {
-      let e: any;
-      try {
-        e = JSON.parse(ev.data);
-      } catch {
-        return;
-      }
-      collectEvent(state, e);
-      if (e.type === "done") {
-        finish(() => {
-          try {
-            ws.close();
-          } catch {}
-          resolve(state);
-        });
-      }
-    };
-    ws.onerror = () => {
-      finish(() => {
-        try {
-          ws.close();
-        } catch {}
-        reject(new Error("WebSocket connection error (server not running or tunnel down)"));
-      });
-    };
-    ws.onclose = () => {
-      finish(() => {
-        reject(new Error("WebSocket closed unexpectedly"));
-      });
-    };
-  });
 }
 
 /**

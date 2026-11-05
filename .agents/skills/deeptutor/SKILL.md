@@ -12,9 +12,9 @@ questions, and study plans, then archives notes to a DeepTutor notebook.
 This skill is **agent-agnostic**: every action below has two equivalent
 drivers —
 
-- **pi / dsh (with the pi deeptutor extension or the `dsh-deeptutor` bundle installed):** the `deeptutor_*` tools.
-  They auto-adapt local/remote deployment (HTTP/WS first with an automatic
-  SSH tunnel, CLI fallback) and stream progress.
+- **dsh (with the `dsh-deeptutor` bundle installed):** the `deeptutor_*` tools.
+  They drive the DeepTutor CLI for you, locally or over SSH for remote
+  deployments.
 - **Any agent / plain CLI:** the `deeptutor` executable directly (local
   binary on PATH, or over SSH for remote deployments). No extension needed.
 
@@ -30,27 +30,27 @@ what matters.
 
 ## Configuration (env vars, agent-agnostic)
 
-Nothing is hardcoded in this skill; all server parameters come from environment variables (put them in `~/.bashrc` or `~/.zshrc`; any agent — pi / dsh / Claude Code / Codex / opencode — inherits them at startup). **Deployment mode adapts automatically**:
+Nothing is hardcoded in this skill; all server parameters come from environment variables (put them in `~/.bashrc` or `~/.zshrc`; any agent — dsh / Claude Code / Codex / opencode — inherits them at startup). **Deployment mode adapts automatically**:
 
 ```bash
-# Remote deployment (DeepTutor on a server, reached through an SSH tunnel)
+# Remote deployment (DeepTutor on a server, driven over SSH)
 export DEEPTUTOR_SSH_HOST="tencent-cloud"           # SSH host alias (set = remote mode)
-export DEEPTUTOR_API_BASE="http://127.0.0.1:8001"   # local tunnel address (change port/server here)
 export DEEPTUTOR_REMOTE_BIN="/home/ubuntu/my-deeptutor/.venv/bin/deeptutor"
 export DEEPTUTOR_REMOTE_HOME="/home/ubuntu/my-deeptutor"
 
 # Local deployment (DeepTutor on this machine) — leave DEEPTUTOR_SSH_HOST unset for local mode
-# export DEEPTUTOR_API_BASE="http://127.0.0.1:8001"  # local serve port
 # export DEEPTUTOR_LOCAL_BIN="deeptutor"             # local CLI path (default: deeptutor on PATH)
 ```
 
-- **Tools path:** API reachable (local serve or tunnel) → HTTP/WS; unreachable →
-  local CLI or SSH CLI fallback automatically. The extension/bundle starts/recycles
-  the SSH tunnel; local mode needs no tunnel.
+- **Tools path:** the bundle runs the local `deeptutor` CLI, or the remote one
+  over SSH when `DEEPTUTOR_SSH_HOST` is set. `deeptutor serve` does not need to
+  be reachable from this machine.
 - **Plain CLI path:** run `deeptutor <subcommand>` locally, or
   `ssh <DEEPTUTOR_SSH_HOST> <DEEPTUTOR_REMOTE_BIN> <subcommand>` for remote
-  deployments (the tunnel is the extension's job — CLI users don't need it).
-- Migrating to another server or port only requires changing env vars — never this skill.
+  deployments.
+- DeepTutor 1.7+ ships `kb`, `notebook` and most capabilities as optional
+  modules; `deeptutor module list` shows which are installed and enabled.
+- Migrating to another server only requires changing env vars — never this skill.
 
 ## Actions Cheat Sheet
 
@@ -172,8 +172,8 @@ explicit request — never proactively.
 
 ## Notes
 
-- Tool calls go through HTTP/WS first (tunnel), falling back to SSH CLI automatically when the tunnel is down; `deeptutor_run` streams over WebSocket so progress is visible.
-- CLI-only flags (not exposed as `deeptutor_run` tool parameters): `--config-json` (complex config; the tools pass config through the API's `config` parameter instead), `--notebook-ref`, `--history-ref`.
+- Tool calls run the DeepTutor CLI (locally or over SSH) and return when the turn finishes; there is no live progress stream.
+- CLI-only flags (not exposed as `deeptutor_run` tool parameters): `--notebook-ref`, `--history-ref`. The tool's `config` object is passed as `--config k=v` for scalars and `--config-json` for nested values.
 - `deep_research` can take minutes: give a generous timeout (900+) or split long tasks.
 - Results may be truncated (default 30000 chars) — ask to continue for the full content.
 - RAG hits can be noisy; treat official sources as authoritative and point out conflicts to the user.
