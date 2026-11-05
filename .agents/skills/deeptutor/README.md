@@ -1,7 +1,7 @@
-# DeepTutor Learning Assistant (extension / bundle + SKILL)
+# DeepTutor Learning Assistant (dsh bundle + SKILL)
 
 > This README is the human-facing documentation; `SKILL.md` is the agent-facing instruction file (loaded on demand).
-> The same code ships in two ecosystems — edit in `pi-extensions` first, then sync to `dsh-deeptutor` (see Maintenance).
+> The bundle and this skill both live in `TecFancy/dsh-deeptutor`.
 
 Bridges **DeepTutor** (open-source personalized tutoring platform) into your
 agent: combines your **personal knowledge bases** (RAG retrieval) with
@@ -9,8 +9,8 @@ agent: combines your **personal knowledge bases** (RAG retrieval) with
 questions, and study plans — then archives your notes to a DeepTutor notebook
 for later review.
 
-- **pi** — extension `extensions/deeptutor/` (entry: `index.ts`) + skill `skills/deeptutor/SKILL.md` (repo: `TecFancy/pi-extensions`)
-- **dsh** — npm bundle `dsh-deeptutor` (the same TypeScript core) + the same skill, installed to `~/.dsh/skills/deeptutor/` (repo: `TecFancy/dsh-deeptutor`)
+Shipped as the npm bundle `dsh-deeptutor` for DeepSeek Harness (dsh); the
+installer also copies this skill to `~/.dsh/skills/deeptutor/`.
 
 ## Features
 
@@ -25,25 +25,13 @@ for later review.
 
 ## Installation
 
-### pi
-
-```bash
-# Install the pi package (extension + SKILL)
-pi install git:github.com/TecFancy/pi-extensions
-
-# Local development: /reload after editing (local path installs are not copied)
-pi install D:/source/personal/pi-extensions
-```
-
-### dsh
-
 ```bash
 # One-shot: bundle + skill, from the published package
 pnpm dlx dsh-deeptutor --profile web
 
 # Or install the skill manually from a checkout
-xcopy /e /i skills\deeptutor %USERPROFILE%\.dsh\skills\deeptutor   # Windows
-cp -r skills/deeptutor ~/.dsh/skills/deeptutor                     # macOS/Linux
+xcopy /e /i .agents\skills\deeptutor %USERPROFILE%\.dsh\skills\deeptutor   # Windows
+cp -r .agents/skills/deeptutor ~/.dsh/skills/deeptutor                     # macOS/Linux
 ```
 
 ## Configuration (environment variables)
@@ -51,9 +39,8 @@ cp -r skills/deeptutor ~/.dsh/skills/deeptutor                     # macOS/Linux
 Set these in `~/.bashrc` or `~/.zshrc` (inherited by any agent at startup — agent-agnostic):
 
 ```bash
-# —— Remote deployment (DeepTutor on a server, via SSH tunnel) ——
+# —— Remote deployment (DeepTutor on a server, driven over SSH) ——
 export DEEPTUTOR_SSH_HOST="tencent-cloud"           # SSH alias (set = remote mode)
-export DEEPTUTOR_API_BASE="http://127.0.0.1:8001"   # local tunnel address (change port here)
 export DEEPTUTOR_REMOTE_BIN="/home/ubuntu/my-deeptutor/.venv/bin/deeptutor"
 export DEEPTUTOR_REMOTE_HOME="/home/ubuntu/my-deeptutor"
 
@@ -62,7 +49,7 @@ export DEEPTUTOR_REMOTE_HOME="/home/ubuntu/my-deeptutor"
 # export DEEPTUTOR_HOME="/path/to/local-workspace"  # local workspace
 ```
 
-**Deployment auto-adapts**: API reachable (local serve or tunnel) → HTTP/WS; unreachable → local CLI or SSH CLI fallback.
+**How calls run**: the tools always drive the DeepTutor CLI — the local binary, or the remote one over SSH when `DEEPTUTOR_SSH_HOST` is set. `deeptutor serve` does not need to be reachable.
 
 ## Usage
 
@@ -93,37 +80,31 @@ The agent follows the SKILL workflow automatically:
 
 | Symptom                                         | Cause & fix                                                                                                                                                                        |
 | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Connection timeout / host resolution failure    | ① Check `DEEPTUTOR_SSH_HOST` is set and SSH passwordless login works ② Is `deeptutor serve` running? (`curl http://127.0.0.1:8001/api/v1/system/status`)                           |
+| Connection timeout / host resolution failure    | ① Check `DEEPTUTOR_SSH_HOST` is set and SSH passwordless login works ② Does the remote CLI run? (`ssh <alias> <DEEPTUTOR_REMOTE_BIN> kb list --format json`)                           |
 | Tool returns "No DEEPTUTOR_* env vars detected" | One-time hint on first call; configure per the Configuration section and restart the agent                                                                                         |
 | Local CLI garbled output / crashes              | The tools inject `PYTHONUTF8=1` automatically; verify Python ≥ 3.11 otherwise                                                                                                      |
 | DNS resolution fails (Windows)                  | Common on corporate networks: if `nslookup` works but curl/python can't resolve, fix `C:\Windows\System32\drivers\etc\hosts` (when appending entries, always start with a newline) |
 | CLI-only package missing modules                | Official `packaging/deeptutor-cli` has incomplete deps; `pip install <module>` per the error (known: loguru, fastapi)                                                              |
+| `No such command 'kb'` / capability unknown     | DeepTutor 1.7+ ships features as modules; check `deeptutor module list`, then `deeptutor module install <name>` (e.g. `knowledge`, `notebook`, `solve`)                           |
 
 ## FAQ
 
 **Q: Can local and remote be used at the same time?**
 A: Yes. Switching only requires changing env vars (set/remove `DEEPTUTOR_SSH_HOST`); the SKILL and tools stay unchanged.
 
-**Q: What if I change servers or ports?**
-A: Only env vars change (`DEEPTUTOR_SSH_HOST` / `DEEPTUTOR_API_BASE` / remote paths) — never the SKILL or tools.
+**Q: What if I change servers?**
+A: Only env vars change (`DEEPTUTOR_SSH_HOST` / remote paths) — never the SKILL or tools.
 
 **Q: Is the knowledge base list hardcoded?**
 A: No. Tools query `deeptutor_kb list` dynamically; new bases are picked up automatically.
 
 **Q: Can other agents (Claude Code / Codex) use it?**
-A: Yes. The SKILL follows the Agent Skills standard and can be linked into `~/.agents/skills/`; the `deeptutor_*` tools are registered by the pi extension or the dsh bundle.
+A: Yes. The SKILL follows the Agent Skills standard and can be linked into `~/.agents/skills/`; the `deeptutor_*` tools are registered by the dsh bundle; other agents use the plain CLI path described in the SKILL.
 
 ## Maintenance
 
-Shared skill files (`skills/deeptutor/*`, `skills/html-doc/*`) live **in this
-repo (pi-extensions)** and are kept agent-neutral. `dsh-deeptutor` ships
-byte-identical copies; after editing, sync with:
+The bundle code (`src/`) and this skill live in `TecFancy/dsh-deeptutor`; edit both there.
 
-```bash
-cd ../dsh-deeptutor && node scripts/sync-skills.mjs ../pi-extensions
-```
-
-- pi code: edit the relevant file under `extensions/deeptutor/` (`index.ts` for tool wiring, `cli-exec.ts`/`http-api.ts`/`turn.ts` for transport logic, `config.ts` for env vars/helpers) → `/reload` to verify
-- dsh code: same files under `dsh-deeptutor/src/` → rebuild with `npm run build`
-- Release pi: push a tag to GitHub, then `pi install git:github.com/TecFancy/pi-extensions@<tag>`
-- Release dsh: bump the version in `package.json`, push a `v*` tag → CI publishes to npm
+- Code: `src/index.ts` for tool wiring, `cli-exec.ts` / `turn.ts` for CLI execution, `config.ts` for env vars/helpers → `npm run typecheck && npm test && npm run build`
+- Skill: edit `.agents/skills/deeptutor/` directly and keep it in step with the tool parameters
+- Release: bump the version in `package.json`, push a `v*` tag → CI publishes to npm
