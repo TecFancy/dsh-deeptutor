@@ -79,7 +79,7 @@ dsh --profile web --dump-config | grep dsh-deeptutor
 
 ```json
 {
-  "dependencies": { "dsh-deeptutor": "^0.1.0" },
+  "dependencies": { "dsh-deeptutor": "^0.2.0" },
   "dsh": {
     "profile": { "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-deeptutor"] }
   }
