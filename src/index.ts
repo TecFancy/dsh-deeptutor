@@ -1,19 +1,18 @@
 /**
  * DeepTutor bridge plugin for DeepSeek Harness (dsh).
  *
- * Migrated from the pi coding-agent extension (TecFancy/pi-extensions,
- * extensions/deeptutor + skills/deeptutor). Registers three model-facing tools:
- *   - deeptutor_run  — execute a DeepTutor learning capability (HTTP/WS first, CLI fallback)
+ * Registers three model-facing tools:
+ *   - deeptutor_run  — execute a DeepTutor learning capability
  *   - deeptutor_kb   — list / search / info knowledge bases
  *   - deeptutor_note — archive a Markdown learning note to a server notebook
  *
- * Deployment auto-detection:
- *   - Local: deeptutor serve runs on this machine → API probe succeeds directly; if serve is
- *     not running, falls back to the local CLI (DEEPTUTOR_LOCAL_BIN).
- *   - Remote: serve runs on a server (listening on 127.0.0.1 only) → an SSH tunnel is started
- *     automatically to reach the API; if the tunnel is unavailable, falls back to the SSH CLI.
+ * Transport: every tool drives the deeptutor CLI.
+ *   - Local: DEEPTUTOR_SSH_HOST unset → runs the local CLI (DEEPTUTOR_LOCAL_BIN).
+ *   - Remote: DEEPTUTOR_SSH_HOST set → runs the server's CLI over SSH.
+ * The HTTP/WS API was dropped: DeepTutor 1.7 moved it off /api/v1 and put it behind
+ * a login, so the old probe always 404'd and cost ~30s per call before the CLI ran anyway.
  *
- * Env config (agent-agnostic): DEEPTUTOR_SSH_HOST / DEEPTUTOR_API_BASE / DEEPTUTOR_LOCAL_BIN /
+ * Env config (agent-agnostic): DEEPTUTOR_SSH_HOST / DEEPTUTOR_LOCAL_BIN /
  * DEEPTUTOR_REMOTE_BIN / DEEPTUTOR_REMOTE_HOME — see src/config.ts and
  * .agents/skills/deeptutor/SKILL.md.
  */
@@ -21,9 +20,8 @@ import type { Context } from "@deepseek-ai/cordis";
 import { defineTool } from "@deepseek-ai/dsh-tools";
 import { CAPABILITIES, configGuide, configHint, SSH_HOST, truncate } from "./config.ts";
 import { cliNoteLocal, cliNoteRemote, runCli } from "./cli-exec.ts";
-import { apiJson, ensureApi, killTunnel } from "./http-api.ts";
 import { renderHtml } from "./html-render.ts";
-import { cliRunTurn, fmtTurnResult, wsRunTurn } from "./turn.ts";
+import { cliRunTurn, fmtTurnResult } from "./turn.ts";
 import { HTML_DOC_SCRIPT } from "./html-render.ts";
 
 export const name = "dsh-deeptutor";
@@ -41,10 +39,6 @@ function json<T extends Record<string, unknown>>(o: T): Jsonify<T> {
 
 export function apply(ctx: Context) {
   console.log(`[dsh-deeptutor] plugin loaded (html script: ${HTML_DOC_SCRIPT})`);
-  // Kill the SSH tunnel process when the plugin unloads.
-  ctx.effect(() => {
-    return () => killTunnel();
-  });
 
   // ---------- Tool 1: run a DeepTutor learning capability ----------
   ctx.tools.register(
@@ -131,27 +125,6 @@ export function apply(ctx: Context) {
         const timeoutMs = (args.timeout ?? 600) * 1000;
         const maxChars = args.max_chars ?? 30000;
         try {
-          if (await ensureApi()) {
-            const r = await wsRunTurn(args, timeoutMs, exec.signal);
-            const htmlNote = await renderHtml(args, r.answer);
-            return json({
-              mode: "http",
-              sessionId: r.sessionId,
-              toolCalls: r.toolCalls,
-              errors: r.errors,
-              text:
-                configHint() + fmtTurnResult(args.capability, r, maxChars) + htmlNote,
-            });
-          }
-        } catch (err: any) {
-          if (exec.signal.aborted) {
-            // user cancelled mid-flight: don't start a fresh CLI run behind their back
-            throw new Error("[deeptutor_run cancelled]");
-          }
-          console.log(`[deeptutor] HTTP/WS failed, falling back to CLI: ${err?.message}`);
-        }
-        // fallback: local/SSH CLI
-        try {
           const r = await cliRunTurn(args, timeoutMs, exec.signal);
           const htmlNote = await renderHtml(args, r.answer);
           return json({
@@ -169,7 +142,7 @@ export function apply(ctx: Context) {
           }
           throw new Error(
             configGuide() +
-              `[deeptutor_run failed (HTTP and CLI both unavailable)] ${err?.message ?? String(err)}`,
+              `[deeptutor_run failed] ${err?.message ?? String(err)}`,
           );
         }
       },
@@ -230,50 +203,7 @@ export function apply(ctx: Context) {
       },
       async execute(args, exec) {
         const maxChars = args.max_chars ?? 30000;
-        // search goes through the CLI (REST has no dedicated search route);
-        // list/info prefer HTTP, fall back to CLI
-        if (args.action !== "search") {
-          try {
-            if (await ensureApi()) {
-              if (args.action === "list") {
-                const arr = await apiJson("/api/v1/knowledge/list", undefined, {
-                  signal: exec.signal,
-                });
-                const body = Array.isArray(arr)
-                  ? arr
-                      .map(
-                        (kb: any) =>
-                          `- ${kb.name} (status=${kb.status ?? "?"}, ${kb.statistics ? JSON.stringify(kb.statistics) : "no stats"}${kb.is_default ? ", default" : ""})`,
-                      )
-                      .join("\n")
-                  : JSON.stringify(arr);
-                return json({
-                  action: "list",
-                  mode: "http",
-                  text:
-                    configHint() +
-                    `Knowledge bases (${Array.isArray(arr) ? arr.length : "?"}):\n${body}`,
-                });
-              }
-              const kb = await apiJson(
-                `/api/v1/knowledge/${encodeURIComponent(args.kb ?? "")}`,
-                undefined,
-                { signal: exec.signal },
-              );
-              return json({
-                action: "info",
-                mode: "http",
-                kb: args.kb,
-                text: truncate(JSON.stringify(kb, null, 2), maxChars),
-              });
-            }
-          } catch (err: any) {
-            console.log(
-              `[deeptutor] kb ${args.action} HTTP failed, falling back to CLI: ${err?.message}`,
-            );
-          }
-        }
-        // CLI fallback (local or SSH). NOTE: `kb search` has no --top-k flag
+        // Local or SSH CLI. NOTE: `kb search` has no --top-k flag
         // (verified on deeptutor CLI 1.5.x); top_k is applied locally below.
         let argv: string[];
         if (args.action === "list") {
@@ -392,60 +322,7 @@ export function apply(ctx: Context) {
       async execute(args, exec) {
         const recordType = (args.type ?? "chat") as string;
         const nbName = args.notebook.trim();
-        // HTTP first
-        try {
-          if (await ensureApi()) {
-            const list = await apiJson("/api/v1/notebook/list", undefined, {
-              signal: exec.signal,
-            });
-            const notebooks: any[] = list?.notebooks ?? [];
-            let nb = notebooks.find((n) => n.name?.trim() === nbName);
-            if (!nb) {
-              const created = await apiJson(
-                "/api/v1/notebook/create",
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    name: nbName,
-                    description: `Archived by dsh agent (${new Date().toISOString().slice(0, 10)})`,
-                  }),
-                },
-                { signal: exec.signal },
-              );
-              nb = created?.notebook ?? created;
-            }
-            const nbId = nb?.id ?? (typeof nb === "string" ? nb : undefined);
-            if (!nbId) throw new Error("cannot resolve notebook id");
-            const added = await apiJson(
-              "/api/v1/notebook/add_record",
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  notebook_ids: [nbId],
-                  record_type: recordType,
-                  title: args.title,
-                  user_query: args.title,
-                  output: args.content,
-                }),
-              },
-              { signal: exec.signal },
-            );
-            return json({
-              notebook: nbName,
-              nbId: String(nbId),
-              title: args.title,
-              mode: "http",
-              text:
-                configHint() +
-                `[note archived (HTTP)] notebook=${nbName} (${nbId}), title=${args.title}, type=${recordType}\n${truncate(JSON.stringify(added ?? {}), 800)}`,
-            });
-          }
-        } catch (err: any) {
-          console.log(`[deeptutor] note HTTP failed, falling back to CLI: ${err?.message}`);
-        }
-        // CLI fallback: remote deployment uses the remote PY_NOTE script; local deployment runs locally
+        // Remote deployment runs the PY_NOTE script on the server; local deployment runs locally
         const { stdout, stderr, code } = SSH_HOST
           ? await cliNoteRemote(nbName, args.title, recordType, args.content, exec.signal)
           : await cliNoteLocal(nbName, args.title, recordType, args.content, exec.signal);
@@ -461,7 +338,7 @@ export function apply(ctx: Context) {
           mode: "cli",
           text:
             configHint() +
-            `[note archived (CLI)] notebook=${nbName}, title=${args.title}, type=${recordType}\n${truncate((stdout ?? "").trim(), 2000)}`,
+            `[note archived] notebook=${nbName}, title=${args.title}, type=${recordType}\n${truncate((stdout ?? "").trim(), 2000)}`,
         });
       },
     }),
