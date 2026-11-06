@@ -16,7 +16,7 @@ Repo-specific rules for agents working on this repo (dsh-deeptutor).
 3. `npm run build` — a src/ edit without a rebuild runs stale code (dsh loads
    `lib/` from the installed package; `lib/` is gitignored, `prepack`
    rebuilds it before publish).
-4. When `.claude-plugin/` or `.mcp.json` changed: `claude plugin validate . --strict`.
+4. When `.claude-plugin/` changed: `claude plugin validate . --strict`.
 5. When a tool's CLI usage changed, or DeepTutor was upgraded: `npm run check:cli`
    against a live deployment (from PowerShell on Windows, not Git Bash).
 

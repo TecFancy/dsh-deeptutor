@@ -9,7 +9,6 @@ const read = (p: string) => JSON.parse(readFileSync(new URL(`../${p}`, import.me
 const pkg = read("package.json");
 const plugin = read(".claude-plugin/plugin.json");
 const market = read(".claude-plugin/marketplace.json");
-const mcp = read(".mcp.json");
 
 test("Claude Code plugin version follows package.json", () => {
   assert.equal(plugin.version, pkg.version, "bump .claude-plugin/plugin.json together with package.json");
@@ -30,8 +29,8 @@ test("plugin skills path points at the bundled skills", () => {
   }
 });
 
-test(".mcp.json starts the launcher, and the launcher and bin targets exist", () => {
-  const server = mcp.mcpServers.deeptutor;
+test("plugin.json starts the launcher, and the launcher and bin targets exist", () => {
+  const server = plugin.mcpServers.deeptutor;
   assert.equal(server.command, "node");
   assert.deepEqual(server.args, ["${CLAUDE_PLUGIN_ROOT}/scripts/mcp-launch.mjs"]);
   assert.ok(existsSync(fileURLToPath(new URL("../scripts/mcp-launch.mjs", import.meta.url))));
@@ -55,4 +54,8 @@ test("launcher prefers lib, then sources with type stripping, then npx pinned to
   assert.equal(npx.command, "npx");
   assert.deepEqual(npx.args, ["-y", "-p", "dsh-deeptutor@1.2.3", "dsh-deeptutor-mcp"]);
   assert.equal(npx.shell, true);
+});
+
+test("no root .mcp.json: it would double as project-scope config without CLAUDE_PLUGIN_ROOT", () => {
+  assert.equal(existsSync(new URL("../.mcp.json", import.meta.url)), false);
 });
