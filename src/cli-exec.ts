@@ -107,14 +107,29 @@ function execFileResolved(
   });
 }
 
-async function sshExec(
-  argv: string[],
-  opts: { signal?: AbortSignal; timeoutMs?: number } = {},
-): Promise<CliResult> {
+/** Options shared by every CLI invocation. */
+export interface CliOptions {
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  /** Extra env vars for the deeptutor process (names must match [A-Z_][A-Z0-9_]*). */
+  env?: Record<string, string>;
+}
+
+const ENV_NAME = /^[A-Z_][A-Z0-9_]*$/;
+
+/** `export K='v'` lines for the remote script; values are single-quote escaped. */
+export function exportLines(env: Record<string, string> = {}): string[] {
+  return Object.entries(env)
+    .filter(([k]) => ENV_NAME.test(k))
+    .map(([k, v]) => `export ${k}='${v.replace(/'/g, `'\\''`)}'`);
+}
+
+async function sshExec(argv: string[], opts: CliOptions = {}): Promise<CliResult> {
   const payload = JSON.stringify({ argv, cwd: DEEPTUTOR_HOME });
   const script = [
     `export DEEPTUTOR_HOME=${DEEPTUTOR_HOME}`,
     "export DEEPTUTOR_SANDBOX_ALLOW_SUBPROCESS=1",
+    ...exportLines(opts.env),
     "F=/tmp/dt_pi_$$",
     `echo '${b64(payload)}' | base64 -d > "$F.json"`,
     `echo '${b64(PY_RUNNER)}' | base64 -d > "$F.py"`,
@@ -145,10 +160,7 @@ async function sshExec(
  *   - Local deployment (SSH_HOST empty) → execute DEEPTUTOR_LOCAL_BIN locally.
  * args are deeptutor subcommand args (without the program name).
  */
-export async function runCli(
-  args: string[],
-  opts: { signal?: AbortSignal; timeoutMs?: number } = {},
-): Promise<CliResult> {
+export async function runCli(args: string[], opts: CliOptions = {}): Promise<CliResult> {
   if (SSH_HOST) {
     return sshExec([DEEPTUTOR_BIN, ...args], opts);
   }
@@ -159,7 +171,7 @@ export async function runCli(
   const res = await execFileResolved(cmd.file, cmd.args, {
     signal: opts.signal,
     timeoutMs: opts.timeoutMs,
-    env: { PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" },
+    env: { ...opts.env, PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" },
     windowsVerbatimArguments: cmd.windowsVerbatimArguments,
   });
   const out = res.stdout ?? "";
