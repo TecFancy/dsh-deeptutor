@@ -182,7 +182,7 @@ install`:
 
 ```json
 {
-  "dependencies": { "dsh-deeptutor": "^0.2.0" },
+  "dependencies": { "dsh-deeptutor": "^0.3.0" },
   "dsh": {
     "profile": { "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-deeptutor"] }
   }
