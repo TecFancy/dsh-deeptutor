@@ -360,13 +360,22 @@ function main() {
     fail(`template.html not found (looked in: ${templateCandidates.join(", ")})`);
   }
   let template = fs.readFileSync(templatePath, "utf8");
-  template = template
-    .replace(/\{\{TITLE\}\}/g, esc(title))
-    .replace(/\{\{BODY\}\}/g, html)
-    .replace(/\{\{TOC\}\}/g, tocHtml)
-    .replace(/\{\{THEME\}\}/g, opts.theme)
-    .replace(/\{\{LANG\}\}/g, opts.lang)
-    .replace(/\{\{GENERATED\}\}/g, generated);
+  // One pass over the template with a replacer function: the inserted text is
+  // used verbatim (a replacement *string* would expand `$$`, `$&`, `` $` ``,
+  // `$'`), and text already inserted (e.g. a literal `{{TOC}}` in the body)
+  // is never scanned for placeholders again.
+  const values = {
+    TITLE: esc(title),
+    BODY: html,
+    TOC: tocHtml,
+    THEME: opts.theme,
+    LANG: opts.lang,
+    GENERATED: generated,
+  };
+  template = template.replace(
+    /\{\{(TITLE|BODY|TOC|THEME|LANG|GENERATED)\}\}/g,
+    (_, key) => values[key],
+  );
 
   if (opts.out) {
     fs.writeFileSync(opts.out, template, "utf8");
