@@ -182,7 +182,7 @@ install`:
 
 ```json
 {
-  "dependencies": { "dsh-deeptutor": "^0.3.0" },
+  "dependencies": { "dsh-deeptutor": "^0.3.1" },
   "dsh": {
     "profile": { "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-deeptutor"] }
   }
@@ -290,8 +290,7 @@ scripts/install-profile.mjs  # one-shot profile installer (exposed as the `dsh-d
 scripts/mcp-launch.mjs # starts the MCP server for the Claude Code plugin
 scripts/check-cli.ts   # drift check against a live DeepTutor (`npm run check:cli`)
 .agents/skills/       # bundled skills: deeptutor/ + html-doc/ (installed to <DSH_HOME>/skills/)
-.claude-plugin/       # Claude Code plugin.json + marketplace.json
-.mcp.json            # the plugin's MCP server (runs scripts/mcp-launch.mjs)
+.claude-plugin/       # Claude Code plugin.json (skills + MCP server) + marketplace.json
 cordis.yml           # dev overlay: insert src/index.ts by absolute path
 cordis.patch.yml     # bundle patch: insert the package by name
 ```
