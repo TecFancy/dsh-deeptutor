@@ -1,6 +1,6 @@
 ---
 name: deeptutor
-description: Combine DeepTutor personal knowledge bases (RAG) with authoritative web sources to generate learning content, self-test questions, and study plans, and archive notes to a notebook. Works with both local and remote DeepTutor deployments. Use when the user wants to learn/review a technical topic (e.g. .NET, C#, SQL Server, React), get a deep explanation grounded in their own knowledge bases, generate exercises, or plan their learning.
+description: Combine DeepTutor personal knowledge bases (RAG) with authoritative web sources to generate learning content, self-test questions, and study plans, and archive notes to a notebook. Works with both local and remote DeepTutor deployments. Use when the user wants to learn/review a technical topic (e.g. .NET, C#, SQL Server, React), get a deep explanation grounded in their own knowledge bases, generate exercises, plan their learning, or manage their DeepTutor knowledge bases and notebooks.
 ---
 
 # DeepTutor Learning Assistant (Personal Knowledge Base)
@@ -9,28 +9,32 @@ Combines the user's **personal knowledge bases** (RAG retrieval) with
 **authoritative web sources** to produce learning content, self-test
 questions, and study plans, then archives notes to a DeepTutor notebook.
 
-This skill is **agent-agnostic**: every action below has two equivalent
-drivers —
+## Drivers
 
-- **dsh (with the `dsh-deeptutor` bundle installed):** the `deeptutor_*` tools.
-  They drive the DeepTutor CLI for you, locally or over SSH for remote
-  deployments.
-- **Any agent / plain CLI:** the `deeptutor` executable directly (local
-  binary on PATH, or over SSH for remote deployments). No extension needed.
+This skill is **agent-agnostic**. Use the first driver that exists in your
+environment; the action, not the tool, is what matters.
 
-Pick whichever path exists in your environment; the action, not the tool, is
-what matters.
+1. **The `deeptutor_*` tools** (preferred). dsh registers them through the
+   `dsh-deeptutor` bundle; Claude Code and other MCP clients get the same four
+   tools from the `dsh-deeptutor` plugin's MCP server (in Claude Code they are
+   named `mcp__plugin_dsh-deeptutor_deeptutor__deeptutor_run` and so on).
+2. **The plain CLI.** `deeptutor <args>` locally, or
+   `ssh <DEEPTUTOR_SSH_HOST> <DEEPTUTOR_REMOTE_BIN> <args>` for a remote
+   deployment. On Windows run it from PowerShell, not Git Bash: MSYS rewrites
+   `/home/...` env values into Windows paths.
 
-## When to Use
-
-- The user wants to learn or review a technical topic (.NET, C#, SQL Server, React, …)
-- The user wants content grounded in their own notes/knowledge bases
-- The user wants generated exercises, quizzes, or a learning plan
-- The user wants to archive study notes for later review
+| Tool             | Use it for                                                                  |
+| ---------------- | --------------------------------------------------------------------------- |
+| `deeptutor_run`  | one learning turn: explanation, questions, research, mastery path, …        |
+| `deeptutor_kb`   | list / search / info of knowledge bases                                     |
+| `deeptutor_note` | archive a Markdown note into a notebook (find-or-create, file upload)       |
+| `deeptutor_cli`  | **everything else** the CLI offers: `deeptutor <args>` behind safety tiers |
 
 ## Configuration (env vars, agent-agnostic)
 
-Nothing is hardcoded in this skill; all server parameters come from environment variables (put them in `~/.bashrc` or `~/.zshrc`; any agent — dsh / Claude Code / Codex / opencode — inherits them at startup). **Deployment mode adapts automatically**:
+Nothing is hardcoded in this skill; all server parameters come from environment
+variables that every agent inherits at startup. **Deployment mode adapts
+automatically**:
 
 ```bash
 # Remote deployment (DeepTutor on a server, driven over SSH)
@@ -38,146 +42,107 @@ export DEEPTUTOR_SSH_HOST="tencent-cloud"           # SSH host alias (set = remo
 export DEEPTUTOR_REMOTE_BIN="/home/ubuntu/my-deeptutor/.venv/bin/deeptutor"
 export DEEPTUTOR_REMOTE_HOME="/home/ubuntu/my-deeptutor"
 
-# Local deployment (DeepTutor on this machine) — leave DEEPTUTOR_SSH_HOST unset for local mode
+# Local deployment: leave DEEPTUTOR_SSH_HOST unset
 # export DEEPTUTOR_LOCAL_BIN="deeptutor"             # local CLI path (default: deeptutor on PATH)
 ```
 
-- **Tools path:** the bundle runs the local `deeptutor` CLI, or the remote one
-  over SSH when `DEEPTUTOR_SSH_HOST` is set. `deeptutor serve` does not need to
-  be reachable from this machine.
-- **Plain CLI path:** run `deeptutor <subcommand>` locally, or
-  `ssh <DEEPTUTOR_SSH_HOST> <DEEPTUTOR_REMOTE_BIN> <subcommand>` for remote
-  deployments.
-- DeepTutor 1.7+ ships `kb`, `notebook` and most capabilities as optional
-  modules; `deeptutor module list` shows which are installed and enabled.
-- Migrating to another server only requires changing env vars — never this skill.
+`deeptutor serve` never needs to be reachable: every call runs the CLI.
+Changing servers only changes env vars, never this skill.
 
-## Actions Cheat Sheet
+## Discover, don't assume
 
-| Action                       | Tools (`deeptutor_*`)            | CLI equivalent (`deeptutor …`)                               |
-| ---------------------------- | -------------------------------- | ------------------------------------------------------------ |
-| List knowledge bases         | `deeptutor_kb action=list`       | `kb list --format json`                                      |
-| Search a knowledge base      | `deeptutor_kb action=search`     | `kb search <kb> "<query>" --format json --mode hybrid`       |
-| Show a knowledge base's info | `deeptutor_kb action=info`       | `kb info <kb>`                                               |
-| Run a learning capability    | `deeptutor_run capability=<cap>` | `run <cap> "<prompt>" --format json`                         |
-| Archive a note to a notebook | `deeptutor_note`                 | `notebook add-md <nb-id> <file> --title "<t>" --type <type>` |
-| View lightweight memory      | — (CLI only)                     | `memory show`                                                |
-| List / inspect sessions      | — (CLI only)                     | `session list` · `session show <id>`                         |
-| Show a notebook's records    | — (CLI only)                     | `notebook show <name>`                                       |
-| Inspect configuration        | — (CLI only)                     | `config show` (troubleshooting)                              |
+DeepTutor's command set, capabilities and tools change between releases and
+between deployments (1.7+ ships them as optional modules). This skill
+deliberately lists only the core workflow. For anything else, **ask the CLI**
+and use only what it shows; never invent commands or flags:
 
-Capabilities: `deep_solve` / `deep_question` / `deep_research` / `chat` /
-`mastery_path` / `visualize` / `math_animator`.
+| To learn                         | Call                                                              |
+| -------------------------------- | ----------------------------------------------------------------- |
+| top-level commands               | `deeptutor_cli args=["--help"]`                                   |
+| one command's subcommands/flags  | `deeptutor_cli args=["kb","--help"]`, `["kb","search","--help"]`  |
+| capabilities ready on this host  | `deeptutor_cli args=["module","list"]` (JSON; `capabilities` of modules with `ready: true`) |
+| tools a turn can enable          | `deeptutor_cli args=["plugin","list"]`, details via `["plugin","info","<name>"]` |
+| knowledge bases                  | `deeptutor_kb action=list`                                        |
 
-Useful `run` flags: `--kb <name>` (mount a knowledge base, repeatable),
-`--tool <name>` (`rag`, `web_search`, `reason`, …, repeatable),
-`--session <id>` (continue context), `--language zh`, `--config k=v`
-(repeatable; e.g. `--config num_questions=5`), `--config-json '{"..."}'`
-(complex config), `--notebook-ref <name>` / `--history-ref <id>` (reference
-notebooks or past sessions from the prompt).
+`deeptutor_run` also tells you the available capabilities when you pick one
+that is not ready. If a needed capability or command does not exist, say so to
+the user instead of guessing.
 
-## Discovering Commands
+## Safety tiers (`deeptutor_cli`)
 
-The command set evolves — this cheat sheet is a curated subset, not the full
-surface. Before using a command not listed here, **discover it from the CLI
-itself** and never invent flags:
+- **read**: runs directly. `--help`; verbs `list`, `show`, `info`, `search`,
+  `state`, `status`, `list-*`; `doctor`; `run`.
+- **confirm**: everything else, including commands you have just discovered
+  (`kb create`, `kb add`, `notebook add-md`, `module enable`, …). Set
+  `confirm=true` **only after the user explicitly asked for that change**;
+  never proactively, never to "try it".
+- **blocked**: destructive verbs (`delete`, `remove*`, `clear`, `uninstall`,
+  `rollback`, `login`, …) and interactive or long-running commands (`chat`,
+  `start`, `stop`, `serve`, `init`). The tool refuses them; tell the user the
+  exact command to run in their own terminal.
 
-```bash
-deeptutor --help              # top-level commands
-deeptutor <cmd> --help        # one subcommand's options
-```
-
-Read the output, then use only what it shows. If a needed capability is not
-in `--help`, report that to the user instead of guessing.
+With the plain CLI driver the same rules apply; you enforce them yourself.
 
 ## Recommended Learning Workflow
 
 ### 1. Gather material from both channels
 
-- `web_search` for **authoritative sources**: official docs (Microsoft Learn / learn.microsoft.com), official blogs, trusted tutorials. Keep the source links.
-- Search the user's personal knowledge base (pick the right one: dotnet-related → their dotnet base, database → sqlserver) to get their own curated notes:
-  - Tools: `deeptutor_kb action=search kb=<kb> query="<topic>"`
-  - CLI: `deeptutor kb search <kb> "<topic>" --format json`
-  - Always list bases first (`deeptutor_kb action=list` / `deeptutor kb list --format json`) — never assume names.
+- `web_search` for **authoritative sources**: official docs (learn.microsoft.com, …), official blogs, trusted tutorials. Keep the links.
+- Search the user's personal knowledge base. List bases first, never assume names:
+  `deeptutor_kb action=list`, then `deeptutor_kb action=search kb=<kb> query="<topic>"`.
 
 ### 2. Deep Solve
 
-- Tools: `deeptutor_run capability=deep_solve prompt="<topic>" kbs=[<kb>] tools=[rag, web_search] language=zh`
-- CLI: `deeptutor run deep_solve "<topic>" --kb <kb> --tool rag --tool web_search --language zh --format json`
+`deeptutor_run capability=deep_solve prompt="<topic>" kbs=[<kb>] tools=[rag, web_search] language=zh`
 
-**Always record the returned `session_id`** — reuse it for every follow-up turn so DeepTutor keeps the context (chat history, knowledge bases, tools).
+(CLI: `deeptutor run deep_solve "<topic>" --kb <kb> --tool rag --tool web_search --language zh --format json`)
+
+**Record the returned `session_id`** and reuse it for every follow-up turn so
+DeepTutor keeps the context (history, knowledge bases, tools).
 
 ### 3. Follow-up questions / targeted reinforcement
 
-Continue with the same `session_id`: details, code examples, common pitfalls, differences vs. authoritative sources.
+Continue with the same `session_id`: details, code examples, pitfalls,
+differences vs. authoritative sources.
 
 ### 4. Self-test
 
-- Tools: `deeptutor_run capability=deep_question prompt="<topic essentials>" session_id=<same> config={num_questions: 5} kbs=[<kb>] language=zh`
-- CLI: `deeptutor run deep_question "<topic essentials>" --session <same> --config num_questions=5 --kb <kb> --language zh --format json`
+`deeptutor_run capability=deep_question prompt="<topic essentials>" session_id=<same> config={num_questions: 5} kbs=[<kb>] language=zh`
 
-### 5. Output a study plan
+### 5. Study plan
 
-Combine all three material sources into a structured plan (Markdown):
-
-- Learning goals and prerequisites
-- Core concept list (marked: from personal KB / authoritative link)
-- Phased schedule (each phase: concept → authoritative reading → KB review → exercises)
-- Quiz questions and acceptance criteria
-- Reference list (authoritative links + KB hit sources)
+Combine the three sources into a structured Markdown plan: goals and
+prerequisites; core concepts (marked personal KB / authoritative link); phased
+schedule (concept → authoritative reading → KB review → exercises); quiz and
+acceptance criteria; references.
 
 ### 5b. Render study material to local HTML (recommended)
 
-When the user wants readable/browsable/printable study material, render the
-answers to a self-contained HTML page (dark/light toggle, TOC, collapsible
-quiz answers, print-friendly) with the **html-doc skill** (zero-dependency
-Node converter):
-
-```bash
-node skills/html-doc/scripts/md-to-html.js <answer.md> --out <page.html> --title "<主题>" --toc
-```
-
-When given the `html` param, `deeptutor_run` does this automatically:
+Pass `html` to `deeptutor_run` and the answer is rendered to a self-contained
+page (dark/light toggle, TOC, collapsible quiz answers, print-friendly) with
+the bundled **html-doc** converter, plus the `.md` source next to it:
 
 ```
-deeptutor_run capability=deep_solve  prompt=<topic>  kbs=[...]  tools=[rag, web_search]
-  html="data/study/<topic>/knowledge.html"  html_title="<主题> · 知识点"  language=zh
-deeptutor_run capability=deep_question  prompt=<topic essentials>  config={num_questions: 5}
-  html="data/study/<topic>/quiz.html"  html_title="<主题> · 自测题"  language=zh
+deeptutor_run capability=deep_solve prompt=<topic> kbs=[...] tools=[rag, web_search]
+  html="data/study/<topic>/knowledge.html" html_title="<主题> · 知识点" language=zh
 ```
 
-Then tell the user the HTML file paths so they can open them in a browser.
+Relative paths resolve against your working directory. To render other
+Markdown, use the html-doc skill's converter
+(`node <html-doc skill dir>/scripts/md-to-html.js <in.md> --out <out.html> --title "<t>" --toc`).
+Tell the user the file paths.
 
-### 6. Archive
+### 6. Archive (only on request)
 
-Store the final notes/plan in a server notebook (e.g. `dotnet-learning`) so they can be retrieved for review later:
-
-- Tools: `deeptutor_note notebook=<name> title="<t>" type=solve content=<markdown>`
-- CLI:
-  ```bash
-  deeptutor notebook list                       # find the notebook id
-  deeptutor notebook create <name> --description "archived"   # only if missing
-  deeptutor notebook add-md <nb-id> <notes.md> --title "<t>" --type solve
-  ```
-
-## Safety Boundaries
-
-Read-only exploration is always fine: `kb list/info/search`, `memory show`,
-`session list/show`, `config show`, `notebook list/show`.
-
-Never run destructive commands: `kb delete`, `memory clear`, `session delete`,
-`notebook remove-record`. Creation/update commands (`kb create/add`,
-`notebook create/add-md/replace-md`, `session rename`) only on the user's
-explicit request — never proactively.
+`deeptutor_note notebook=<name> title="<t>" type=solve content=<markdown>`
+(creates the notebook if missing).
 
 ## Notes
 
-- Tool calls run the DeepTutor CLI (locally or over SSH) and return when the turn finishes; there is no live progress stream.
-- CLI-only flags (not exposed as `deeptutor_run` tool parameters): `--notebook-ref`, `--history-ref`. The tool's `config` object is passed as `--config k=v` for scalars and `--config-json` for nested values.
-- `deep_research` can take minutes: give a generous timeout (900+) or split long tasks.
-- Results may be truncated (default 30000 chars) — ask to continue for the full content.
-- RAG hits can be noisy; treat official sources as authoritative and point out conflicts to the user.
-- Do not delete knowledge bases or run destructive operations (see Safety
-  Boundaries above); `kb create/add` is fine, but only on the user's explicit
-  request, never proactively.
-- CLI output: add `--format json` for machine-readable events; without it you get human-readable text.
+- Calls return when the turn finishes; there is no live progress stream.
+- `deep_research` can take minutes: pass `timeout` 900+ or split the task.
+- Results are truncated at `max_chars` (default 30000); ask to continue for more.
+- `deeptutor_run` covers the common flags; CLI-only flags such as
+  `--notebook-ref` / `--history-ref` go through `deeptutor_cli args=["run", …]`.
+- RAG hits can be noisy; treat official sources as authoritative and point out
+  conflicts to the user.

@@ -2,11 +2,13 @@
 
 **English** | [简体中文](https://github.com/TecFancy/dsh-deeptutor/blob/main/README.zh.md)
 
-A **learning-assistant extension for DeepSeek Harness (dsh)**. It connects your
-agent to a [HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor) tutoring
-service, so a dsh session can explain topics in depth, quiz you, plan learning
-paths, search your personal knowledge bases, and keep a study notebook — all
-without leaving the harness.
+A **learning-assistant extension for DeepSeek Harness (dsh) and Claude Code**.
+It connects your agent to a [HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor)
+tutoring service, so a session can explain topics in depth, quiz you, plan
+learning paths, search your personal knowledge bases, and keep a study
+notebook, all without leaving the agent. In dsh it loads as a bundle; in
+Claude Code (or any MCP client) the same tools are served by a bundled MCP
+server, installed as a Claude Code plugin.
 
 Ask the agent *"teach me async/await"* and it can run a deep-solve, render the
 answer as a self-contained HTML study page you can open in a browser, and
@@ -14,20 +16,41 @@ archive a summary into your notebook.
 
 ## What it adds
 
-Three agent-facing tools that the model uses whenever you ask for learning help:
+Four agent-facing tools that the model uses whenever you ask for learning help:
 
 | Tool | What it does |
 |---|---|
-| `deeptutor_run` | Runs one learning capability: `deep_solve` (in-depth explanation), `deep_question` (self-test questions), `deep_research`, `chat`, `mastery_path` (learning-path planning), `visualize` / `math_animator` (visualization). Can mount your knowledge bases (`kbs`) and tools (`rag`, `web_search`, `reason`, `code_execution`, …); returns a `session_id` so later turns continue the same context. |
+| `deeptutor_run` | Runs one learning capability, e.g. `deep_solve` (in-depth explanation), `deep_question` (self-test questions), `deep_research`, `chat`, `mastery_path` (learning-path planning), `visualize`. Can mount your knowledge bases (`kbs`) and tools (`rag`, `web_search`, `reason`, `code_execution`, …); returns a `session_id` so later turns continue the same context, and can render the answer to an HTML study page. |
 | `deeptutor_kb` | Lists, searches, and inspects your personal knowledge bases (RAG) |
 | `deeptutor_note` | Archives Markdown study notes (plans, summaries, wrong answers) into a server notebook |
+| `deeptutor_cli` | Runs any other DeepTutor CLI command, behind safety tiers (below) |
 
-The seven capabilities above are the fixed enum accepted by `deeptutor_run`.
-The underlying DeepTutor CLI may expose more — enumerate the full command set
-with `deeptutor --help` / `deeptutor <cmd> --help`. The `deeptutor` skill
-instructs the agent to discover commands this way and, when the tool's enum
-doesn't cover a capability, to drive the CLI directly (local binary or over
-SSH).
+### Following DeepTutor upgrades without plugin releases
+
+The plugin does not mirror DeepTutor's command surface, so a DeepTutor upgrade
+that adds commands, capabilities or tools needs no plugin change:
+
+- **Capabilities are discovered at runtime.** `deeptutor_run` takes any
+  capability name. The plugin reads `deeptutor module list` (JSON, cached for
+  five minutes) to learn which capabilities the deployment's ready modules
+  provide; a capability whose module is not ready fails fast with the reason and
+  the list of available ones, and names no module lists are passed straight to
+  the CLI (they may come from a DeepTutor plugin).
+- **Every other command goes through `deeptutor_cli`.** The agent discovers
+  commands from the CLI itself (`args: ["--help"]`, then `["kb", "--help"]`, …)
+  instead of a list baked into the plugin. Safety tiers keep the passthrough
+  honest about commands it has never seen:
+
+  | Tier | Commands | Behaviour |
+  |---|---|---|
+  | read | `--help`, verbs `list` / `show` / `info` / `search` / `state` / `status` / `list-*`, `doctor`, `run` | runs directly |
+  | confirm | everything else, including verbs the plugin does not know yet | runs only with `confirm: true`, which the agent may set only after you explicitly asked for that change |
+  | blocked | `delete`, `remove*`, `clear`, `uninstall`, `rollback`, `login`, …; interactive or long-running `chat` / `start` / `stop` / `serve` / `init` | refused; run them in a terminal yourself |
+
+- **Drift check.** Only the few CLI shapes the dedicated tools are built on
+  (`run --format json` events, `kb search`, `notebook add-md`, `module list`)
+  can break the plugin. `npm run check:cli` checks them against the deployment
+  your env vars point at; run it after upgrading DeepTutor.
 
 ## Example session
 
@@ -51,7 +74,8 @@ study page, then archived to a notebook):
 
 ## Requirements
 
-- A working DeepSeek Harness (dsh) install, 0.1.0-rc.6 or newer. The manifest
+- An agent host: Claude Code (or another MCP client) with Node ≥ 20, or a
+  working DeepSeek Harness (dsh) install, 0.1.0-rc.6 or newer. The manifest
   declares a version floor rather than a ceiling, so a new dsh release is never
   refused at install time; a scheduled probe boots the plugin against the
   current npm `latest` and `next` hosts instead and opens an issue when
@@ -67,7 +91,40 @@ study page, then archived to a notebook):
   and most capabilities come from optional modules; check that the ones you
   use are installed and enabled with `deeptutor module list`.
 
-## Install into a profile (bundle)
+## Install into Claude Code (plugin)
+
+This repo is also a Claude Code plugin marketplace. Inside Claude Code:
+
+```text
+/plugin marketplace add TecFancy/dsh-deeptutor
+/plugin install dsh-deeptutor@dsh-deeptutor
+```
+
+or from a shell:
+
+```sh
+claude plugin marketplace add TecFancy/dsh-deeptutor
+claude plugin install dsh-deeptutor@dsh-deeptutor
+```
+
+The plugin brings the two skills (`deeptutor`, `html-doc`) and an MCP server
+named `deeptutor` that serves the four tools (Claude Code shows them as
+`mcp__plugin_dsh-deeptutor_deeptutor__deeptutor_run` and so on). Set the
+`DEEPTUTOR_*` env vars (see [Configuration](#configuration-env-vars-agent-agnostic))
+where Claude Code can inherit them, then restart Claude Code.
+
+The server is started by `scripts/mcp-launch.mjs`, which picks the first entry
+that works: compiled `lib/` → the plugin's own `src/` via Node's type stripping
+(Node ≥ 22.6, no network) → `npx dsh-deeptutor@<plugin version>` for older Node.
+Either way the server runs the code of the installed plugin version.
+
+**Other MCP clients** (Codex, Cursor, …) can run the published bin directly:
+
+```json
+{ "command": "npx", "args": ["-y", "-p", "dsh-deeptutor", "dsh-deeptutor-mcp"] }
+```
+
+## Install into a dsh profile (bundle)
 
 The package is published to npm as `dsh-deeptutor`. Recommended one-liner —
 runs the bundled installer (`scripts/install-profile.mjs`, exposed as the
@@ -164,6 +221,7 @@ Two skills ship inside this package (`.agents/skills/deeptutor` and
 Installing a newer package version overwrites skill files in place; files not
 shipped by the package are never deleted.
 
+The Claude Code plugin loads the same skills straight from `.agents/skills/`.
 The skills are maintained in this repo under `.agents/skills/`.
 
 ## Configuration (env vars, agent-agnostic)
@@ -178,7 +236,7 @@ export DEEPTUTOR_REMOTE_HOME="/home/ubuntu/my-deeptutor"
 # export DEEPTUTOR_LOCAL_BIN="deeptutor"             # local CLI path (default: deeptutor on PATH)
 ```
 
-Restart dsh after changing env vars.
+Restart dsh or Claude Code after changing env vars.
 
 **Windows, local mode:** point `DEEPTUTOR_LOCAL_BIN` at `deeptutor.exe`
 (for a pip/venv install: `<venv>\Scripts\deeptutor.exe`). A `.cmd`/`.bat`
@@ -212,6 +270,8 @@ npm install
 npm run build        # tsc → lib/ (relative .ts imports rewritten to .js)
 npm run typecheck
 npm test             # node:test + type stripping
+npm run check:cli    # drift check against the live DeepTutor your env vars point at
+claude plugin validate . --strict   # Claude Code plugin + marketplace manifests
 npm pack             # inspect dsh-deeptutor-<version>.tgz
 npm publish          # set a scope/registry of your choice first
 ```
@@ -227,12 +287,19 @@ src/                 # TypeScript sources (dev loading, typecheck)
 lib/                 # compiled ESM (published entry, from `npm run build`)
 scripts/md-to-html.js  # zero-dependency Markdown → HTML converter
 scripts/install-profile.mjs  # one-shot profile installer (exposed as the `dsh-deeptutor` binary)
+scripts/mcp-launch.mjs # starts the MCP server for the Claude Code plugin
+scripts/check-cli.ts   # drift check against a live DeepTutor (`npm run check:cli`)
 .agents/skills/       # bundled skills: deeptutor/ + html-doc/ (installed to <DSH_HOME>/skills/)
+.claude-plugin/       # Claude Code plugin.json + marketplace.json
+.mcp.json            # the plugin's MCP server (runs scripts/mcp-launch.mjs)
 cordis.yml           # dev overlay: insert src/index.ts by absolute path
 cordis.patch.yml     # bundle patch: insert the package by name
 ```
 
-`src/index.ts` registers the tools; `config.ts` holds env config;
+`src/tools.ts` defines the four tools once, host-neutral; `index.ts` registers
+them in dsh; `mcp.ts` serves them over MCP stdio (`mcp-main.ts` is the
+`dsh-deeptutor-mcp` bin); `cli-policy.ts` holds the `deeptutor_cli` safety
+tiers; `discovery.ts` capability discovery; `config.ts` holds env config;
 `cli-exec.ts` local/SSH CLI execution; `win-cmd.ts` starting a `.cmd`/`.bat` CLI on Windows;
 `turn.ts` one learning turn (CLI JSONL event folding + formatting);
 `html-render.ts` answer → self-contained HTML.

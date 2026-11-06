@@ -56,15 +56,5 @@ export function configGuide(): string {
   );
 }
 
-export const CAPABILITIES = [
-  "chat",
-  "deep_solve",
-  "deep_question",
-  "deep_research",
-  "visualize",
-  "math_animator",
-  "mastery_path",
-] as const;
-
 export const truncate = (s: string, n: number) =>
   s.length > n ? s.slice(0, n) + `\n…[truncated, ${s.length} chars total]` : s;

@@ -1,0 +1,16 @@
+{
+  "name": "dsh-deeptutor",
+  "owner": {
+    "name": "TecFancy"
+  },
+  "metadata": {
+    "description": "DeepTutor learning tools for Claude Code, from the dsh-deeptutor package"
+  },
+  "plugins": [
+    {
+      "name": "dsh-deeptutor",
+      "source": "./",
+      "description": "DeepTutor learning tools (MCP) and skills for Claude Code"
+    }
+  ]
+}
