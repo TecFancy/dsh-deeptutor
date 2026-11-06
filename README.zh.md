@@ -2,21 +2,35 @@
 
 [English](https://github.com/TecFancy/dsh-deeptutor/blob/main/README.md) | **简体中文**
 
-面向 **DeepSeek Harness (dsh)** 的**学习辅助扩展**。它将 [HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor) 辅导服务接入你的 agent,让 dsh 会话能够深度讲解知识点、出题自测、规划学习路径、检索你的个人知识库,并把学习笔记归档到 notebook —— 全程不出 harness。
+面向 **DeepSeek Harness (dsh) 和 Claude Code** 的**学习辅助扩展**。它将 [HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor) 辅导服务接入你的 agent,让会话能够深度讲解知识点、出题自测、规划学习路径、检索你的个人知识库,并把学习笔记归档到 notebook,全程不出 agent。在 dsh 里它作为 bundle 加载;在 Claude Code(或任何 MCP 客户端)里,同一组工具由随包的 MCP server 提供,以 Claude Code 插件的形式安装。
 
 只要对 agent 说 *"给我讲讲 async/await"*,它就能跑一次 deep-solve,把答案渲染成可在浏览器打开的自包含 HTML 学习页,再把摘要归档进你的笔记本。
 
 ## 它带来什么
 
-三个 agent 可见工具,当你请求学习帮助时由模型调用:
+四个 agent 可见工具,当你请求学习帮助时由模型调用:
 
 | 工具 | 作用 |
 |---|---|
-| `deeptutor_run` | 执行一次学习调用: `deep_solve`(深度讲解)/ `deep_question`(自测题)/ `deep_research` / `chat` / `mastery_path`(学习路径规划)/ `visualize` / `math_animator`(可视化)。可挂载你的知识库(`kbs`)与工具(`rag`、`web_search`、`reason`、`code_execution` 等);返回 `session_id`,后续轮次可延续同一上下文。 |
+| `deeptutor_run` | 执行一次学习调用,例如 `deep_solve`(深度讲解)、`deep_question`(自测题)、`deep_research`、`chat`、`mastery_path`(学习路径规划)、`visualize`。可挂载你的知识库(`kbs`)与工具(`rag`、`web_search`、`reason`、`code_execution` 等);返回 `session_id`,后续轮次可延续同一上下文,还能把答案渲染成 HTML 学习页。 |
 | `deeptutor_kb` | 列出 / 搜索 / 查看你的个人知识库(RAG) |
 | `deeptutor_note` | 把 Markdown 学习笔记(计划、总结、错题等)归档到服务器 notebook |
+| `deeptutor_cli` | 执行 DeepTutor CLI 的其他任意命令,受下文的安全分级约束 |
 
-上表 7 个 capability 是 `deeptutor_run` 工具接受的固定枚举。底层 DeepTutor CLI 可能支持更多命令 —— 用 `deeptutor --help` / `deeptutor <cmd> --help` 可枚举完整命令集。`deeptutor` skill 会指示 agent 以这种方式动态发现命令;当工具的枚举未覆盖某能力时,agent 可直接调用 CLI(本地二进制或经 SSH)来驱动。
+### DeepTutor 升级时插件不用跟着发版
+
+插件不再照抄 DeepTutor 的命令面,所以 DeepTutor 新增命令、capability 或工具时,插件不用改:
+
+- **capability 运行时发现。** `deeptutor_run` 接受任意 capability 名。插件读取 `deeptutor module list`(JSON,缓存 5 分钟),得知部署上已就绪的模块提供哪些 capability;所属模块没就绪的 capability 会立即失败,并给出原因和当前可用列表;没有任何模块列出的名字直接交给 CLI(可能来自 DeepTutor 插件)。
+- **其余命令都走 `deeptutor_cli`。** agent 从 CLI 自己查命令(`args: ["--help"]`,再 `["kb", "--help"]` 等),不依赖插件里写死的清单。安全分级保证透传对没见过的命令也有分寸:
+
+  | 档位 | 命令 | 行为 |
+  |---|---|---|
+  | read | `--help`,动词为 `list` / `show` / `info` / `search` / `state` / `status` / `list-*` 的命令,`doctor`、`run` | 直接执行 |
+  | confirm | 其余所有命令,包括插件还不认识的动词 | 需要 `confirm: true`,agent 只有在你明确要求这项改动后才能设 |
+  | blocked | `delete`、`remove*`、`clear`、`uninstall`、`rollback`、`login` 等;交互式或常驻的 `chat` / `start` / `stop` / `serve` / `init` | 拒绝执行,请自己在终端里跑 |
+
+- **漂移检查。** 能让插件失效的只有专用工具依赖的少数几处 CLI 形状(`run --format json` 的事件、`kb search`、`notebook add-md`、`module list`)。`npm run check:cli` 会对环境变量指向的部署逐项检查;升级 DeepTutor 后跑一次。
 
 ## 示例会话
 
@@ -37,14 +51,40 @@
 
 ## 环境要求
 
-- 可用的 DeepSeek Harness (dsh) 安装,0.1.0-rc.6 或更新版本。清单里只写下限不写上限,新版本 dsh 发布后不会再在安装时被拒绝;替代办法是定时拿 npm 上 `latest` 和 `next` 两个通道的宿主各冷启动一次,插件起不来就开 issue。`dsh plugin add` 自动登记 bundle 已在 dsh CLI 0.1.0-rc.6、0.2.1-rc.2 与 0.2.1-rc.3 上验证。
+- 一个 agent 宿主:Claude Code(或其他 MCP 客户端)加 Node ≥ 20,或者可用的 DeepSeek Harness (dsh) 安装,0.1.0-rc.6 或更新版本。清单里只写下限不写上限,新版本 dsh 发布后不会再在安装时被拒绝;替代办法是定时拿 npm 上 `latest` 和 `next` 两个通道的宿主各冷启动一次,插件起不来就开 issue。`dsh plugin add` 自动登记 bundle 已在 dsh CLI 0.1.0-rc.6、0.2.1-rc.2 与 0.2.1-rc.3 上验证。
 - 一个 DeepTutor 部署,二选一:
   - **本地** —— 本机装有 `deeptutor` CLI(在 PATH 上,或由 `DEEPTUTOR_LOCAL_BIN` 指定);
   - **远程** —— DeepTutor 装在一台能免密 SSH 登录的服务器上,插件经 SSH 调用服务器上的 CLI。
 
   已在 DeepTutor 1.7.1 上验证。从 1.7 起,`kb`、`notebook` 命令和大部分 capability 由可选模块提供,用 `deeptutor module list` 确认要用的模块已安装并启用。
 
-## 安装到 profile(bundle 方式)
+## 安装到 Claude Code(插件方式)
+
+本仓库同时是一个 Claude Code 插件 marketplace。在 Claude Code 里:
+
+```text
+/plugin marketplace add TecFancy/dsh-deeptutor
+/plugin install dsh-deeptutor@dsh-deeptutor
+```
+
+或者在 shell 里:
+
+```sh
+claude plugin marketplace add TecFancy/dsh-deeptutor
+claude plugin install dsh-deeptutor@dsh-deeptutor
+```
+
+插件带来两个 skill(`deeptutor`、`html-doc`)和一个名为 `deeptutor` 的 MCP server,提供上面四个工具(Claude Code 里显示为 `mcp__plugin_dsh-deeptutor_deeptutor__deeptutor_run` 等)。把 `DEEPTUTOR_*` 环境变量设在 Claude Code 能继承到的地方(见[配置](#配置环境变量与-agent-无关)),然后重启 Claude Code。
+
+MCP server 由 `scripts/mcp-launch.mjs` 启动,按顺序取第一个可用的入口:编译好的 `lib/` → 插件自带的 `src/`,用 Node 的类型剥离直接运行(Node ≥ 22.6,不联网)→ 旧版 Node 时用 `npx dsh-deeptutor@<插件版本>`。无论哪条路,跑的都是已安装插件那个版本的代码。
+
+**其他 MCP 客户端**(Codex、Cursor 等)可以直接运行发布出去的 bin:
+
+```json
+{ "command": "npx", "args": ["-y", "-p", "dsh-deeptutor", "dsh-deeptutor-mcp"] }
+```
+
+## 安装到 dsh profile(bundle 方式)
 
 包已发布到 npm(`dsh-deeptutor`)。推荐一条命令 —— 运行随包发布的安装器(`scripts/install-profile.mjs`,以 `dsh-deeptutor` 二进制暴露),它包装 `dsh plugin add` 并自动处理下文所述的 pnpm workspace-root 检查:
 
@@ -110,7 +150,7 @@ bundle 清单(`dsh.bundle.patch → cordis.patch.yml`)负责插入插件行;上�
 
 升级包版本时会就地覆盖 skill 文件;包未携带的文件不会被删除。
 
-skill 就在本仓库的 `.agents/skills/` 下维护。
+Claude Code 插件直接从 `.agents/skills/` 加载同一份 skill。skill 就在本仓库的 `.agents/skills/` 下维护。
 
 ## 配置(环境变量,与 agent 无关)
 
@@ -124,7 +164,7 @@ export DEEPTUTOR_REMOTE_HOME="/home/ubuntu/my-deeptutor"
 # export DEEPTUTOR_LOCAL_BIN="deeptutor"             # 本地 CLI 路径(默认: PATH 上的 deeptutor)
 ```
 
-修改环境变量后需重启 dsh。
+修改环境变量后需重启 dsh 或 Claude Code。
 
 **Windows 本地模式:** 把 `DEEPTUTOR_LOCAL_BIN` 指向 `deeptutor.exe`(pip/venv 安装时是 `<venv>\Scripts\deeptutor.exe`)。`.cmd`/`.bat` 包装脚本也能用:只把 `%*` 转给某个 `.exe` 的包装脚本会被绕过,直接运行那个 `.exe`;其他包装脚本经 `cmd.exe` 运行,而 `cmd.exe` 传不了多行提示词,这类调用会报错并提示改用 `.exe`。
 
@@ -147,6 +187,8 @@ npm install
 npm run build        # tsc → lib/(相对 .ts import 改写为 .js)
 npm run typecheck
 npm test             # node:test + type stripping
+npm run check:cli    # 对环境变量指向的 DeepTutor 做漂移检查
+claude plugin validate . --strict   # 校验 Claude Code 插件和 marketplace 清单
 npm pack             # 检查 dsh-deeptutor-<version>.tgz
 npm publish
 ```
@@ -160,9 +202,13 @@ src/                 # TypeScript 源码(开发加载、类型检查)
 lib/                 # 编译产物(发布入口,由 npm run build 生成)
 scripts/md-to-html.js  # 零依赖 Markdown → HTML 转换器
 scripts/install-profile.mjs  # 一键 profile 安装器(以 `dsh-deeptutor` 二进制暴露)
+scripts/mcp-launch.mjs # 为 Claude Code 插件启动 MCP server
+scripts/check-cli.ts   # 对真实 DeepTutor 的漂移检查(`npm run check:cli`)
 .agents/skills/       # 随包 skill:deeptutor/ + html-doc/(安装到 <DSH_HOME>/skills/)
+.claude-plugin/       # Claude Code 的 plugin.json 和 marketplace.json
+.mcp.json            # 插件的 MCP server(运行 scripts/mcp-launch.mjs)
 cordis.yml           # 开发 overlay:按绝对路径插入 src/index.ts
 cordis.patch.yml     # bundle patch:按包名插入插件
 ```
 
-`src/index.ts` 注册工具;`config.ts` 环境配置;`cli-exec.ts` 本地/SSH CLI 执行;`win-cmd.ts` 在 Windows 上启动 `.cmd`/`.bat` 形式的 CLI;`turn.ts` 单次学习回合(CLI JSONL 事件折叠与格式化);`html-render.ts` 答案 → 自包含 HTML。
+`src/tools.ts` 定义四个工具,与宿主无关;`index.ts` 在 dsh 里注册它们;`mcp.ts` 经 MCP stdio 提供它们(`mcp-main.ts` 是 `dsh-deeptutor-mcp` bin 的入口);`cli-policy.ts` 是 `deeptutor_cli` 的安全分级;`discovery.ts` 负责 capability 发现;`config.ts` 环境配置;`cli-exec.ts` 本地/SSH CLI 执行;`win-cmd.ts` 在 Windows 上启动 `.cmd`/`.bat` 形式的 CLI;`turn.ts` 单次学习回合(CLI JSONL 事件折叠与格式化);`html-render.ts` 答案 → 自包含 HTML。

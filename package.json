@@ -1,7 +1,7 @@
 {
   "name": "dsh-deeptutor",
   "version": "0.2.1",
-  "description": "Learning assistant extension for DeepSeek Harness (dsh): DeepTutor tutoring for your agent — deep explanations, self-test questions, learning paths, personal knowledge-base search (RAG), and note archiving (drives the DeepTutor CLI locally or over SSH).",
+  "description": "Learning assistant extension for DeepSeek Harness (dsh) and Claude Code (MCP): DeepTutor tutoring for your agent: deep explanations, self-test questions, learning paths, personal knowledge-base search (RAG), note archiving, and any other DeepTutor CLI command (drives the DeepTutor CLI locally or over SSH).",
   "keywords": [
     "dsh",
     "dsh-plugin",
@@ -9,7 +9,9 @@
     "deeptutor",
     "tutoring",
     "rag",
-    "agent"
+    "agent",
+    "mcp",
+    "claude-code"
   ],
   "license": "MIT",
   "repository": {
@@ -28,7 +30,8 @@
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "bin": {
-    "dsh-deeptutor": "scripts/install-profile.mjs"
+    "dsh-deeptutor": "scripts/install-profile.mjs",
+    "dsh-deeptutor-mcp": "lib/mcp-main.js"
   },
   "exports": {
     ".": {
@@ -61,7 +64,8 @@
     "typecheck": "tsc --noEmit",
     "prepack": "npm run build && npm run typecheck",
     "pack:check": "npm pack --dry-run",
-    "test": "node --test --experimental-strip-types"
+    "test": "node --test --experimental-strip-types",
+    "check:cli": "node --experimental-strip-types --no-warnings scripts/check-cli.ts"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
