@@ -1,7 +1,7 @@
 # DeepTutor Learning Assistant (dsh bundle + SKILL)
 
 > This README is the human-facing documentation; `SKILL.md` is the agent-facing instruction file (loaded on demand).
-> The bundle and this skill both live in `TecFancy/dsh-deeptutor`.
+> The bundle, the Claude Code plugin and this skill all live in `TecFancy/dsh-deeptutor`.
 
 Bridges **DeepTutor** (open-source personalized tutoring platform) into your
 agent: combines your **personal knowledge bases** (RAG retrieval) with
@@ -9,8 +9,9 @@ agent: combines your **personal knowledge bases** (RAG retrieval) with
 questions, and study plans — then archives your notes to a DeepTutor notebook
 for later review.
 
-Shipped as the npm bundle `dsh-deeptutor` for DeepSeek Harness (dsh); the
-installer also copies this skill to `~/.dsh/skills/deeptutor/`.
+Shipped as the npm bundle `dsh-deeptutor` for DeepSeek Harness (dsh), whose
+installer also copies this skill to `~/.dsh/skills/deeptutor/`, and as a
+Claude Code plugin (skills + an MCP server with the same tools).
 
 ## Features
 
@@ -26,7 +27,11 @@ installer also copies this skill to `~/.dsh/skills/deeptutor/`.
 ## Installation
 
 ```bash
-# One-shot: bundle + skill, from the published package
+# Claude Code: plugin = this skill + html-doc + MCP tools
+claude plugin marketplace add TecFancy/dsh-deeptutor
+claude plugin install dsh-deeptutor@dsh-deeptutor
+
+# dsh, one-shot: bundle + skill, from the published package
 pnpm dlx dsh-deeptutor --profile web
 
 # Or install the skill manually from a checkout
@@ -75,6 +80,12 @@ The agent follows the SKILL workflow automatically:
 | `deeptutor_run`  | `capability` (deep_solve / deep_question / deep_research / chat / mastery_path / …), `kbs`, `tools` (rag / web_search), `session_id`, `config`, `language` |
 | `deeptutor_kb`   | `list` / `search` (kb + query + mode) / `info`                                                                                                             |
 | `deeptutor_note` | `notebook` (auto-created), `title`, `type` (chat/question/research/solve), `content` (Markdown)                                                            |
+| `deeptutor_cli`  | `args` (anything after `deeptutor`), `confirm` (state-changing commands, only on the user's request). Destructive and interactive commands are refused.        |
+
+Capabilities are not a fixed list: `deeptutor_run` accepts whatever the
+deployment's ready modules provide (`deeptutor module list`), and every other
+CLI command is reachable through `deeptutor_cli` and discoverable with
+`--help`, so DeepTutor upgrades need no plugin release.
 
 ## Troubleshooting
 
@@ -99,12 +110,12 @@ A: Only env vars change (`DEEPTUTOR_SSH_HOST` / remote paths) — never the SKIL
 A: No. Tools query `deeptutor_kb list` dynamically; new bases are picked up automatically.
 
 **Q: Can other agents (Claude Code / Codex) use it?**
-A: Yes. The SKILL follows the Agent Skills standard and can be linked into `~/.agents/skills/`; the `deeptutor_*` tools are registered by the dsh bundle; other agents use the plain CLI path described in the SKILL.
+A: Yes. Claude Code installs the plugin and gets the skill plus the `deeptutor_*` tools over MCP. Other MCP clients can run the `dsh-deeptutor-mcp` bin (`npx -y -p dsh-deeptutor dsh-deeptutor-mcp`); agents without MCP follow the plain CLI path in the SKILL.
 
 ## Maintenance
 
 The bundle code (`src/`) and this skill live in `TecFancy/dsh-deeptutor`; edit both there.
 
-- Code: `src/index.ts` for tool wiring, `cli-exec.ts` / `turn.ts` for CLI execution, `config.ts` for env vars/helpers → `npm run typecheck && npm test && npm run build`
+- Code: `src/tools.ts` defines the tools (dsh wiring in `index.ts`, MCP in `mcp.ts`), `cli-policy.ts` the `deeptutor_cli` tiers, `discovery.ts` capability discovery, `cli-exec.ts` / `turn.ts` CLI execution, `config.ts` env vars/helpers → `npm run typecheck && npm test && npm run build`; after a DeepTutor upgrade, `npm run check:cli`
 - Skill: edit `.agents/skills/deeptutor/` directly and keep it in step with the tool parameters
 - Release: bump the version in `package.json`, push a `v*` tag → CI publishes to npm

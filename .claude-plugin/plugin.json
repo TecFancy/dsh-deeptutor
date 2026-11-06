@@ -1,0 +1,11 @@
+{
+  "name": "dsh-deeptutor",
+  "version": "0.2.1",
+  "description": "DeepTutor learning assistant for Claude Code: deep explanations, self-test questions, learning paths, knowledge-base search (RAG), note archiving, plus any other DeepTutor CLI command behind safety tiers. Drives the DeepTutor CLI locally or over SSH.",
+  "author": { "name": "TecFancy" },
+  "homepage": "https://github.com/TecFancy/dsh-deeptutor",
+  "repository": "https://github.com/TecFancy/dsh-deeptutor",
+  "license": "MIT",
+  "keywords": ["deeptutor", "learning", "tutoring", "rag", "mcp"],
+  "skills": ["./.agents/skills/"]
+}
