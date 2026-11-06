@@ -138,6 +138,22 @@ test("cliRunTurn throws the CLI error on non-zero exit", async () => {
   );
 });
 
+test("cliRunTurn reports the Node error code when the CLI wrote no stderr", async () => {
+  // A run killed for exceeding the output ceiling reports via err.code, not
+  // stderr; the message used to collapse into "(no stderr)" and hide the cause.
+  const fakeRun = async () => ({
+    stdout: "",
+    stderr: "",
+    code: 1,
+    killed: false,
+    error: "ERR_CHILD_PROCESS_STDIO_MAXBUFFER",
+  });
+  await assert.rejects(
+    cliRunTurn(runParams, 1000, undefined, fakeRun as any),
+    /CLI exit=1: output exceeded \d+ bytes/,
+  );
+});
+
 test("cliRunTurn collects JSONL events into the turn state", async () => {
   const fakeRun = async () => ({
     stdout:
