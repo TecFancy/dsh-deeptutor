@@ -88,3 +88,37 @@ test("md-to-html --no-collapse keeps quiz answers as plain headings", async () =
   assert.ok(!html.includes('<details class="answer">'));
   assert.match(html, /<h2/);
 });
+
+test("md-to-html inserts body, title and toc verbatim (no $-pattern expansion)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "dt-md-test-"));
+  const mdPath = join(dir, "d.md");
+  const outPath = join(dir, "d.html");
+  writeFileSync(
+    mdPath,
+    [
+      "# Cost $& more",
+      "",
+      "Display math: $$x^2$$ and the PID $$.",
+      "",
+      "```",
+      "s.replace(/a/, \"[$&]\"); s.replace(/a/, \"$'\"); s.replace(/a/, \"$`\");",
+      "```",
+      "",
+      "Template syntax looks like {{TOC}} and {{THEME}}.",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  const { code, stderr } = await runCli([mdPath, "--out", outPath, "--toc", "--title", "T $$ $&"]);
+  assert.equal(code, 0, stderr);
+  const html = readFileSync(outPath, "utf8");
+  assert.ok(html.includes("$$x^2$$"), "display math $$ kept");
+  assert.ok(html.includes("the PID $$."), "lone $$ kept");
+  assert.ok(html.includes("[$&amp;]"), "$& kept in code");
+  assert.ok(html.includes("$&#39;") || html.includes("$'"), "$' kept in code");
+  assert.ok(html.includes("$`"), "$` kept in code");
+  assert.ok(html.includes("{{TOC}} and {{THEME}}"), "placeholder-like body text not substituted");
+  assert.ok(html.includes("<title>T $$ $&amp;</title>"), "title kept");
+  assert.ok(html.includes(">Cost $&amp; more</a>"), "toc entry kept");
+  assert.ok(!html.includes("{{BODY}}"), "no leaked placeholder");
+});
