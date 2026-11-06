@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
  * Launcher for the DeepTutor MCP server, used by the Claude Code plugin
- * (.mcp.json → `node ${CLAUDE_PLUGIN_ROOT}/scripts/mcp-launch.mjs`).
+ * (`mcpServers` in .claude-plugin/plugin.json → `node ${CLAUDE_PLUGIN_ROOT}/scripts/mcp-launch.mjs`).
+ * The config lives in plugin.json, not a root .mcp.json: Claude Code also reads
+ * a root .mcp.json as project-scope config whenever this repo is the working
+ * directory, where ${CLAUDE_PLUGIN_ROOT} is undefined.
  *
  * A plugin installed from the marketplace is a plain git checkout: it has the
  * TypeScript sources but no compiled lib/ and no node_modules. The server has no
