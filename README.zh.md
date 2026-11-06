@@ -119,7 +119,7 @@ dsh --profile web --dump-config | grep dsh-deeptutor
 
 ```json
 {
-  "dependencies": { "dsh-deeptutor": "^0.3.0" },
+  "dependencies": { "dsh-deeptutor": "^0.3.1" },
   "dsh": {
     "profile": { "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-deeptutor"] }
   }
@@ -205,8 +205,7 @@ scripts/install-profile.mjs  # 一键 profile 安装器(以 `dsh-deeptutor` 二�
 scripts/mcp-launch.mjs # 为 Claude Code 插件启动 MCP server
 scripts/check-cli.ts   # 对真实 DeepTutor 的漂移检查(`npm run check:cli`)
 .agents/skills/       # 随包 skill:deeptutor/ + html-doc/(安装到 <DSH_HOME>/skills/)
-.claude-plugin/       # Claude Code 的 plugin.json 和 marketplace.json
-.mcp.json            # 插件的 MCP server(运行 scripts/mcp-launch.mjs)
+.claude-plugin/       # Claude Code 的 plugin.json(skill 和 MCP server)和 marketplace.json
 cordis.yml           # 开发 overlay:按绝对路径插入 src/index.ts
 cordis.patch.yml     # bundle patch:按包名插入插件
 ```
