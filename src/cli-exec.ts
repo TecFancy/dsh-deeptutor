@@ -203,10 +203,16 @@ export async function runCli(args: string[], opts: CliOptions = {}): Promise<Cli
     windowsVerbatimArguments: cmd.windowsVerbatimArguments,
   });
   const out = res.stdout ?? "";
-  const [stdout, stderr] = out.split("__DT_STDERR__");
+  // Local mode is a direct execFile: the child's real stderr lands in res.stderr, and
+  // the __DT_STDERR__ marker only exists on the ssh path (the remote Python runner
+  // folds stderr into stdout). Splitting stdout still strips the marker if some wrapper
+  // emits one, but res.stderr must win — reading only the split tail threw away every
+  // Python traceback and reported "(no stderr)" for local runs (issue #20).
+  const [stdout, wrapped] = out.split("__DT_STDERR__");
+  const captured = (res.stderr ?? "").trim();
   return {
     stdout: stdout ?? "",
-    stderr: (stderr ?? "").trim(),
+    stderr: captured || (wrapped ?? "").trim(),
     code: res.code,
     killed: res.killed,
     error: res.error,
