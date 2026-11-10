@@ -39,6 +39,8 @@ cat notes.md | node scripts/md-to-html.js --title "Quiz" --theme dark --out quiz
 #   --toc            generate a table of contents from headings (h2/h3)
 #   --lang <code>    html lang attribute (default: zh-CN)
 #   --no-collapse    disable <details> wrapping for quiz answers (default: collapse enabled)
+#   --template <file> HTML template to use (default: the assets/ copy next to the
+#                    script, or $HTML_DOC_TEMPLATE when that is set)
 ```
 
 ## Supported Markdown
@@ -83,6 +85,28 @@ Edit `assets/template.html` — it uses `{{TITLE}}`, `{{BODY}}`, `{{THEME}}`, `{
 - Code block styling with optional language badge
 - Table styling, blockquote styling, task-list checkboxes
 - Responsive layout (comfortable reading column)
+
+### Which template wins
+
+The converter resolves the template in this order (first hit wins); the `--out`
+log line names the file it used, and `deeptutor_run`'s `html` note prints it too:
+
+1. `--template <file>` on the command line,
+2. `$HTML_DOC_TEMPLATE`,
+3. `assets/template.html` next to the script (the copy shipped in this skill),
+4. `../.agents/skills/html-doc/assets/template.html` from a package-root duplicate.
+
+An explicitly requested template (1 or 2) that does not exist is an error
+instead of a silent fallback, so a typo cannot produce pages from the default
+template.
+
+`deeptutor_run`'s `html` path uses the same order but also prefers the
+**installed** skill at `<DSH_HOME>/skills/html-doc/` over the copy bundled in the
+plugin package (with `$HTML_DOC_SCRIPT`/`$HTML_DOC_TEMPLATE` as explicit
+overrides). Editing the installed template therefore changes the next render —
+no plugin edit needed. (Re-running the installer copies the bundled skill files
+back over the installed ones, so keep a copy of a heavily customised template
+outside `<DSH_HOME>/skills/` and point `$HTML_DOC_TEMPLATE` at it.)
 
 ## Notes
 

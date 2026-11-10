@@ -38,7 +38,7 @@
 
 1. **提问** —— *"用我的 dotnet 知识库讲讲 C# 泛型协变,并生成学习页。"*
 2. agent 先检索你的自有资料:`deeptutor_kb`(`action=search`,`kb=dotnet`)。
-3. 再执行深度讲解:`deeptutor_run`(`capability=deep_solve`,`kbs=[dotnet]`,`html=data/study/csharp-covariance.html`)—— 答案返回的同时,自包含 HTML 学习页(及配套 `.md` 源文件)写入磁盘。
+3. 再执行深度讲解:`deeptutor_run`(`capability=deep_solve`,`kbs=[dotnet]`,`html=/home/me/study/csharp-covariance.html`)—— 答案返回的同时,自包含 HTML 学习页(及配套 `.md` 源文件)写入磁盘。`html` 必须是绝对路径,相对路径会被拒绝。
 4. 最后归档摘要:`deeptutor_note`(`notebook=dotnet-learning`,`type=solve`)。
 
 以上不是固定脚本 —— agent 会根据你的提问自由选择工具与参数。
@@ -146,7 +146,7 @@ bundle 清单(`dsh.bundle.patch → cordis.patch.yml`)负责插入插件行;上�
 本包携带两个 skill(`.agents/skills/deeptutor` 与 `.agents/skills/html-doc`),随包安装器每次运行时都会把它们复制到 `<DSH_HOME>/skills/<name>/`(dsh 自动发现)—— 所以 `pnpm dlx dsh-deeptutor` 一次装齐插件 **和** skill:
 
 - `deeptutor` — 面向 agent 的学习工作流(`~/.dsh/skills/deeptutor/SKILL.md`)
-- `html-doc` — 将学习内容渲染为自包含 HTML 页面(`~/.dsh/skills/html-doc/`);`deeptutor_run` 传入 `html` 路径时,插件内部使用同一转换器(`scripts/md-to-html.js`)
+- `html-doc` — 将学习内容渲染为自包含 HTML 页面(`~/.dsh/skills/html-doc/`);`deeptutor_run` 传入 `html` 时,转换器与模板按 `$HTML_DOC_SCRIPT` / `$HTML_DOC_TEMPLATE` → 上面这个已安装 skill → 包内副本的顺序解析。改已安装模板(例如真正接上 KaTeX)下次渲染即生效,不用改插件包;工具结果会打印每层实际用的文件。`html` 路径必须是绝对路径。
 
 升级包版本时会就地覆盖 skill 文件;包未携带的文件不会被删除。
 
