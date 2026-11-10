@@ -100,10 +100,11 @@ An explicitly requested template (1 or 2) that does not exist is an error
 instead of a silent fallback, so a typo cannot produce pages from the default
 template.
 
-`deeptutor_run`'s `html` path uses the same order but also prefers the
-**installed** skill at `<DSH_HOME>/skills/html-doc/` over the copy bundled in the
-plugin package (with `$HTML_DOC_SCRIPT`/`$HTML_DOC_TEMPLATE` as explicit
-overrides). Editing the installed template therefore changes the next render —
+`deeptutor_run`'s `html` path resolves this in the **host**, not inside this
+script: it prefers the **installed** skill at `<DSH_HOME>/skills/html-doc/` over
+the copy bundled in the plugin package (with `$HTML_DOC_SCRIPT`/`$HTML_DOC_TEMPLATE`
+as explicit overrides), then hands the winning template to the converter as
+`--template`. Editing the installed template therefore changes the next render —
 no plugin edit needed. (Re-running the installer copies the bundled skill files
 back over the installed ones, so keep a copy of a heavily customised template
 outside `<DSH_HOME>/skills/` and point `$HTML_DOC_TEMPLATE` at it.)
