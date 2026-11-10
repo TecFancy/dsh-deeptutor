@@ -58,7 +58,7 @@ A typical flow when you ask your agent for learning help:
 
 1. **Ask** — *"Explain C# generics covariance using my dotnet knowledge base, and generate a study page."*
 2. The agent grounds the answer in your own material: `deeptutor_kb` (`action=search`, `kb=dotnet`).
-3. It runs a deep-solve: `deeptutor_run` (`capability=deep_solve`, `kbs=[dotnet]`, `html=data/study/csharp-covariance.html`) — the answer comes back and a self-contained HTML page (plus the `.md` source) is written to disk.
+3. It runs a deep-solve: `deeptutor_run` (`capability=deep_solve`, `kbs=[dotnet]`, `html=/home/me/study/csharp-covariance.html`) — the answer comes back and a self-contained HTML page (plus the `.md` source) is written to disk. The `html` path must be absolute; relative paths are rejected.
 4. It files a summary: `deeptutor_note` (`notebook=dotnet-learning`, `type=solve`).
 
 Nothing here is a fixed script — the agent picks the tools and parameters based
@@ -215,8 +215,12 @@ Two skills ship inside this package (`.agents/skills/deeptutor` and
 
 - `deeptutor` — the agent-facing learning workflow (`~/.dsh/skills/deeptutor/SKILL.md`)
 - `html-doc` — renders study answers to self-contained HTML pages
-  (`~/.dsh/skills/html-doc/`); the bundle uses the same converter
-  (`scripts/md-to-html.js`) when `deeptutor_run` gets an `html` path
+  (`~/.dsh/skills/html-doc/`); when `deeptutor_run` gets an `html` path, the
+  converter and template are resolved as `$HTML_DOC_SCRIPT` /
+  `$HTML_DOC_TEMPLATE` → the installed skill above → the copy bundled in this
+  package. Editing the installed template (say, wiring KaTeX in) changes the
+  next render without patching the plugin, and the tool result prints which
+  layer supplied each file. The `html` path itself must be absolute.
 
 Installing a newer package version overwrites skill files in place; files not
 shipped by the package are never deleted.
