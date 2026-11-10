@@ -19,7 +19,7 @@
  */
 import type { Context } from "@deepseek-ai/cordis";
 import { defineTool } from "@deepseek-ai/dsh-tools";
-import { HTML_DOC_SCRIPT } from "./html-render.ts";
+import { resolveHtmlDocScript } from "./html-render.ts";
 import { TOOLS } from "./tools.ts";
 
 export const name = "dsh-deeptutor";
@@ -42,7 +42,10 @@ const OUTPUT = {
 } as const;
 
 export function apply(ctx: Context) {
-  console.log(`[dsh-deeptutor] plugin loaded (html script: ${HTML_DOC_SCRIPT})`);
+  const converter = resolveHtmlDocScript();
+  console.log(
+    `[dsh-deeptutor] plugin loaded (html-doc converter: ${converter.ok ? `${converter.path} (${converter.source})` : converter.error})`,
+  );
   for (const tool of TOOLS) {
     ctx.tools.register(
       defineTool({
