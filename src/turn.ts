@@ -3,7 +3,7 @@
  * (local or over SSH), JSONL event parsing and result formatting.
  */
 import { truncate } from "./config.ts";
-import { runCli } from "./cli-exec.ts";
+import { describeCliFailure, runCli } from "./cli-exec.ts";
 
 export interface TurnResult {
   answer: string;
@@ -69,7 +69,10 @@ export async function cliRunTurn(
   signal?: AbortSignal,
   run: typeof runCli = runCli,
 ): Promise<TurnResult> {
-  const { stdout, stderr, code, killed } = await run(buildRunArgs(params), { signal, timeoutMs });
+  const { stdout, stderr, code, killed, error } = await run(buildRunArgs(params), {
+    signal,
+    timeoutMs,
+  });
   if (killed) {
     // A kill can come from the user cancelling (signal) or from the timeout;
     // report the real reason instead of always blaming the timeout.
@@ -77,7 +80,7 @@ export async function cliRunTurn(
       signal?.aborted ? "Aborted" : `CLI execution timed out (${Math.round(timeoutMs / 1000)}s)`,
     );
   }
-  if (code !== 0) throw new Error(`CLI exit=${code}: ${stderr || "(no stderr)"}`);
+  if (code !== 0) throw new Error(`CLI exit=${code}: ${describeCliFailure({ stderr, error })}`);
   const state: TurnResult = { answer: "", errors: [], toolCalls: [] };
   for (const line of stdout.split("\n")) {
     if (!line.trim()) continue;
