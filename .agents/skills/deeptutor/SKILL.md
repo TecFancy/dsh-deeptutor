@@ -120,16 +120,32 @@ acceptance criteria; references.
 
 Pass `html` to `deeptutor_run` and the answer is rendered to a self-contained
 page (dark/light toggle, TOC, collapsible quiz answers, print-friendly) with
-the bundled **html-doc** converter, plus the `.md` source next to it:
+the **html-doc** converter, plus the `.md` source next to it:
 
 ```
 deeptutor_run capability=deep_solve prompt=<topic> kbs=[...] tools=[rag, web_search]
-  html="data/study/<topic>/knowledge.html" html_title="<主题> · 知识点" language=zh
+  html="<absolute path, e.g. /home/me/study/<topic>/knowledge.html>" html_title="<主题> · 知识点" language=zh
 ```
 
-Relative paths resolve against your working directory. To render other
-Markdown, use the html-doc skill's converter
-(`node <html-doc skill dir>/scripts/md-to-html.js <in.md> --out <out.html> --title "<t>" --toc`).
+`html` must be an **absolute** path. A tool has no workspace root (dsh hands it
+only the agent identity, and the MCP server has no session), so a relative path
+cannot be resolved against your working directory — it is rejected instead of
+silently landing under the host process cwd. Prefix it with your working
+directory explicitly.
+
+The converter and its template are resolved in this order, and the tool result
+prints which layer won (`converter:` / `template:` lines):
+
+1. `HTML_DOC_SCRIPT` / `HTML_DOC_TEMPLATE` env vars (explicit override; a
+   set-but-missing path is an error),
+2. the installed skill at `<DSH_HOME>/skills/html-doc/` (`DSH_HOME` defaults to
+   `~/.dsh`) — edit the template there to customise the page, no plugin edit
+   needed,
+3. the copy bundled with the plugin.
+
+To render other Markdown, use the html-doc skill's converter
+(`node <html-doc skill dir>/scripts/md-to-html.js <in.md> --out <out.html> --title "<t>" --toc`,
+plus `--template <file>` to pick a specific template).
 Tell the user the file paths.
 
 ### 6. Archive (only on request)
