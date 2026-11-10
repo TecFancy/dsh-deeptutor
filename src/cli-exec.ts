@@ -9,11 +9,35 @@ import { join } from "node:path";
 import { DEEPTUTOR_BIN, DEEPTUTOR_HOME, LOCAL_BIN, SSH_HOST } from "./config.ts";
 import { resolveLocalCommand } from "./win-cmd.ts";
 
+/**
+ * Upper bound for one CLI run's captured stdout/stderr.
+ *
+ * `deeptutor run --format json` writes one JSON line per streamed chunk, and a
+ * chunk is roughly one character of the answer once event metadata is included
+ * (~1.5 KB of JSON per output character measured on 1.7.1). A 1500-character
+ * answer is therefore ~2 MB, already past Node's 1 MB `execFile` default: the
+ * child is killed mid-turn and the only trace is a string `err.code`
+ * (`ERR_CHILD_PROCESS_STDIO_MAXBUFFER`) with empty stderr. 64 MB covers a
+ * ~40k-character answer, well beyond the CLI's own per-turn token ceiling.
+ */
+export const MAX_CLI_OUTPUT_BYTES = 64 * 1024 * 1024;
+
 export interface CliResult {
   stdout: string;
   stderr: string;
   code: number;
   killed: boolean;
+  /** Node-level failure code, kept when stderr is empty so callers can report it. */
+  error?: string;
+}
+
+/** Model-facing detail for a failed CLI run: stderr first, else the Node error code. */
+export function describeCliFailure(res: Pick<CliResult, "stderr" | "error">): string {
+  const stderr = (res.stderr ?? "").trim();
+  if (stderr) return stderr;
+  if (res.error === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER")
+    return `output exceeded ${MAX_CLI_OUTPUT_BYTES} bytes (see MAX_CLI_OUTPUT_BYTES)`;
+  return res.error || "(no stderr)";
 }
 
 // Remote runner: reads argv from a JSON file and executes without a shell (avoids all quoting/escaping).
@@ -60,8 +84,9 @@ const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
 /** Timeout for each notebook-archiver CLI step (list / create / add-md). */
 const NOTE_STEP_TIMEOUT_MS = 30_000;
 
-/** Exec one command with optional abort + timeout, resolving instead of throwing. */
-function execFileResolved(
+/** Exec one command with optional abort + timeout, resolving instead of throwing.
+ *  Exported for tests: the captured-output ceiling is part of the contract. */
+export function execFileResolved(
   file: string,
   args: string[],
   opts: {
@@ -80,6 +105,7 @@ function execFileResolved(
         windowsHide: true,
         windowsVerbatimArguments: opts.windowsVerbatimArguments,
         timeout: opts.timeoutMs,
+        maxBuffer: MAX_CLI_OUTPUT_BYTES,
       },
       (err, stdout, stderr) => {
         const e: any = err;
@@ -88,6 +114,7 @@ function execFileResolved(
           stderr: stderr ?? "",
           code: e ? (typeof e.code === "number" ? e.code : e.code === "ENOENT" ? 127 : 1) : 0,
           killed: e?.killed ?? false,
+          error: e && typeof e.code === "string" ? String(e.code) : undefined,
         });
       },
     );
@@ -151,6 +178,7 @@ async function sshExec(argv: string[], opts: CliOptions = {}): Promise<CliResult
     stderr: (stderr ?? "").trim(),
     code: res.code ?? -1,
     killed: res.killed,
+    error: res.error,
   };
 }
 
@@ -175,12 +203,19 @@ export async function runCli(args: string[], opts: CliOptions = {}): Promise<Cli
     windowsVerbatimArguments: cmd.windowsVerbatimArguments,
   });
   const out = res.stdout ?? "";
-  const [stdout, stderr] = out.split("__DT_STDERR__");
+  // Local mode is a direct execFile: the child's real stderr lands in res.stderr, and
+  // the __DT_STDERR__ marker only exists on the ssh path (the remote Python runner
+  // folds stderr into stdout). Splitting stdout still strips the marker if some wrapper
+  // emits one, but res.stderr must win — reading only the split tail threw away every
+  // Python traceback and reported "(no stderr)" for local runs (issue #20).
+  const [stdout, wrapped] = out.split("__DT_STDERR__");
+  const captured = (res.stderr ?? "").trim();
   return {
     stdout: stdout ?? "",
-    stderr: (stderr ?? "").trim(),
+    stderr: captured || (wrapped ?? "").trim(),
     code: res.code,
     killed: res.killed,
+    error: res.error,
   };
 }
 

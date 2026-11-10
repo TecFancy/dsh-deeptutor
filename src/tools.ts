@@ -20,7 +20,7 @@ import { cliNoteLocal, cliNoteRemote, runCli } from "./cli-exec.ts";
 import { classifyCliArgs } from "./cli-policy.ts";
 import { configGuide, configHint, SSH_HOST, truncate } from "./config.ts";
 import { describeCapabilities, discoverCapabilities } from "./discovery.ts";
-import { renderHtml } from "./html-render.ts";
+import { renderHtml, htmlTargetProblem } from "./html-render.ts";
 import { cliRunTurn, fmtTurnResult } from "./turn.ts";
 
 interface Base {
@@ -134,11 +134,15 @@ const runTool: ToolSpec = {
     html: {
       type: "string",
       description:
-        "Optional output path for a self-contained local HTML render of the answer (also writes the companion .md next to it), e.g. data/study/abstract-class/knowledge.html. Relative paths resolve against the agent's working directory. Set it when the user wants browsable/printable study material.",
+        "Optional absolute output path for a self-contained local HTML render of the answer (also writes the companion .md next to it), e.g. /home/me/study/abstract-class/knowledge.html. Must be absolute: this tool has no workspace root, so relative paths are rejected instead of silently landing under the host process cwd. The template comes from the installed html-doc skill when present ($HTML_DOC_TEMPLATE overrides it); see SKILL.md. Set it when the user wants browsable/printable study material.",
     },
     html_title: { type: "string", description: "HTML page title (default: derived from the html file name)" },
   },
   async execute(args, signal) {
+    // Fail before the (possibly minutes-long) DeepTutor turn: a relative html
+    // path cannot be resolved against the caller's workspace, so reject it here.
+    const htmlProblem = args.html ? htmlTargetProblem(String(args.html)) : null;
+    if (htmlProblem) throw new Error(`[deeptutor_run] ${htmlProblem}`);
     const timeoutMs = (args.timeout ?? 600) * 1000;
     const maxChars = args.max_chars ?? 30000;
     const capability = String(args.capability).trim();

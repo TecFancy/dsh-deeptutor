@@ -1,6 +1,6 @@
 {
   "name": "dsh-deeptutor",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "DeepTutor learning assistant for Claude Code: deep explanations, self-test questions, learning paths, knowledge-base search (RAG), note archiving, plus any other DeepTutor CLI command behind safety tiers. Drives the DeepTutor CLI locally or over SSH.",
   "author": {
     "name": "TecFancy"

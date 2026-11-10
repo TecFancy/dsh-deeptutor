@@ -4,8 +4,11 @@
  *
  * Usage:
  *   node md-to-html.js <input.md> [--out out.html] [--title "T"] [--theme dark|light]
- *                      [--toc] [--lang zh-CN] [--no-collapse]
+ *                      [--toc] [--lang zh-CN] [--no-collapse] [--template template.html]
  *   cat file.md | node md-to-html.js --title "T" --out out.html
+ *
+ * Template resolution order: --template, $HTML_DOC_TEMPLATE, the assets/ copy
+ * next to this script, then the package-root duplicate's skill copy.
  *
  * Features: headings, fenced code blocks, inline code/bold/italic/links, lists,
  * task lists, blockquotes, pipe tables, hr, quiz answer collapsing (<details>),
@@ -27,9 +30,10 @@ function parseArgs(argv) {
     toc: false,
     lang: "zh-CN",
     collapse: true,
+    template: null,
   };
   const positional = [];
-  const valueFlags = new Set(["--out", "--title", "--theme", "--lang"]);
+  const valueFlags = new Set(["--out", "--title", "--theme", "--lang", "--template"]);
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--toc") opts.toc = true;
@@ -50,7 +54,11 @@ function parseArgs(argv) {
           fail(`Invalid --theme value "${value}": expected dark or light`);
         }
         opts.theme = value;
-      } else if (a === "--lang") opts.lang = value;
+      } else if (a === "--lang") {
+        opts.lang = value;
+      } else if (a === "--template") {
+        opts.template = value;
+      }
     } else if (a.startsWith("--")) {
       fail(`Unknown option: ${a} (run with --help for usage)`);
     } else positional.push(a);
@@ -77,6 +85,8 @@ Options:
   --theme <mode>   dark | light (default: light; toggle also available in page)
   --toc            generate a table of contents from h2/h3 headings
   --lang <code>    html lang attribute (default: zh-CN)
+  --template <file> HTML template to use (default: the assets/ copy next to this
+                   script, or $HTML_DOC_TEMPLATE when set)
   --no-collapse    disable quiz-answer collapsing
   --help           show this help`);
 }
@@ -351,11 +361,25 @@ function main() {
   const generated = new Date().toISOString().slice(0, 10);
   // The same converter ships in two locations (.agents/skills/html-doc/scripts/
   // and a package-root scripts/ copy); resolve the template wherever we are.
+  // Order: --template, $HTML_DOC_TEMPLATE, then the copies next to this script.
+  // An explicit override that does not exist is an error: a typo must not
+  // silently fall through to a different template.
+  const explicitTemplate = opts.template || process.env.HTML_DOC_TEMPLATE || null;
   const templateCandidates = [
     path.join(import.meta.dirname, "..", "assets", "template.html"),
     path.join(import.meta.dirname, "..", ".agents", "skills", "html-doc", "assets", "template.html"),
   ];
-  const templatePath = templateCandidates.find((p) => fs.existsSync(p));
+  let templatePath;
+  if (explicitTemplate) {
+    if (!fs.existsSync(explicitTemplate)) {
+      fail(
+        `template not found: ${explicitTemplate} (from ${opts.template ? "--template" : "HTML_DOC_TEMPLATE"})`,
+      );
+    }
+    templatePath = explicitTemplate;
+  } else {
+    templatePath = templateCandidates.find((p) => fs.existsSync(p));
+  }
   if (!templatePath) {
     fail(`template.html not found (looked in: ${templateCandidates.join(", ")})`);
   }
@@ -380,7 +404,7 @@ function main() {
   if (opts.out) {
     fs.writeFileSync(opts.out, template, "utf8");
     console.log(
-      `[html-doc] wrote ${path.resolve(opts.out)} (${Buffer.byteLength(template)} bytes)`,
+      `[html-doc] wrote ${path.resolve(opts.out)} (${Buffer.byteLength(template)} bytes, template: ${templatePath})`,
     );
   } else {
     process.stdout.write(template);
