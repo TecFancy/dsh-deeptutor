@@ -51,8 +51,22 @@ in this repo; edit them here directly. There is no upstream copy to sync from.
 - Version bumps are manual commits (`chore: release vX.Y.Z`) + `vX.Y.Z` tags.
   Bump `.claude-plugin/plugin.json` together with `package.json` (a test
   enforces it): the plugin's npx fallback pins the npm package to that version.
-- Pushing a `v*` tag triggers `.github/workflows/release.yml` (npm publish;
-  requires the `NPM_TOKEN` secret, otherwise publish locally).
+- Pushing a `v*` tag triggers `.github/workflows/release.yml` (npm publish).
+  Authentication is npm Trusted Publishing (OIDC), not a token: the job holds
+  `id-token: write` and no `NPM_TOKEN` secret exists. Three things must stay
+  true or publishing fails with a bare `ENEEDAUTH`:
+  - the trusted publisher on npmjs.com names this repository and the workflow
+    filename `release.yml` — renaming the file means updating npm first;
+  - the job keeps `id-token: write`;
+  - `actions/setup-node` is **not** given `registry-url`. That input writes
+    `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` into `.npmrc`; with no
+    token it expands to an empty string, npm reads it as "auth already
+    configured", skips the OIDC exchange and fails
+    ([actions/setup-node#1551](https://github.com/actions/setup-node/issues/1551)).
+
+  Node 24 is pinned because Trusted Publishing needs npm ≥ 11.5.1, and Node 22
+  ships npm 10.9.x. `--provenance` is not passed: a trusted publish attests
+  automatically.
 
 ## Branch model
 
