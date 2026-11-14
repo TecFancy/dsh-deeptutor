@@ -10,12 +10,25 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # npm Trusted Publishing (OIDC): npm exchanges this job's GitHub-signed
+    # identity for a short-lived publish token, so no NPM_TOKEN secret exists.
+    # The trust is registered on npmjs.com against this exact repo and the
+    # `release.yml` filename; renaming the file breaks publishing.
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v5
+      # No `registry-url` here on purpose. It makes setup-node write
+      # `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` into .npmrc; with
+      # no token that expands to an empty string, npm reads it as "auth is
+      # already configured" and never starts the OIDC exchange, failing with
+      # ENEEDAUTH (actions/setup-node#1551). registry.npmjs.org is npm's
+      # default anyway.
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
+          node-version: 24
+          package-manager-cache: false
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
@@ -24,6 +37,6 @@ jobs:
         run: |
           node --input-type=module -e "import fs from 'node:fs'; const a=fs.readFileSync('scripts/md-to-html.js','utf8'); const b=fs.readFileSync('.agents/skills/html-doc/scripts/md-to-html.js','utf8'); if(a!==b){ console.error('scripts/md-to-html.js differs from .agents/skills/html-doc/scripts/md-to-html.js'); process.exit(1) }"
       - run: npm run pack:check
+      # No NODE_AUTH_TOKEN and no --provenance: a trusted publish attests
+      # automatically.
       - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
