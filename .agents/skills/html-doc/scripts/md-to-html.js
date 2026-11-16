@@ -179,15 +179,46 @@ function parse(md, opts) {
     // unescaped. Kept narrow on purpose — deeptutor_run feeds model/web_search-sourced
     // answers into this converter automatically, so a wider tag whitelist (div/table/p/...)
     // would let untrusted <script>/on*= content ride along into the generated local HTML.
-    if (/^<(details|summary)\b/i.test(line.trim())) {
-      const tag = /^<details\b/i.test(line.trim()) ? "details" : "summary";
-      const closeRe = new RegExp(`</${tag}>`, "i");
+    // Nothing in the block is echoed verbatim: the tags are rebuilt without attributes (only a
+    // bare `open` survives), the <summary> text goes through inline() (escape, then format),
+    // and the body is parsed as Markdown, so raw HTML inside it is escaped like anywhere else.
+    // Echoing the lines let `<details ontoggle=... open>` and `<img onerror=...>` through.
+    if (/^<details\b/i.test(line.trim())) {
+      const m = line
+        .trim()
+        .match(/^<details\b([^>]*)>\s*(?:<summary\b[^>]*>(.*?)<\/summary>)?(.*)$/i);
+      if (m) {
+        const isOpen = /(^|\s)open(\s|=|$)/i.test(m[1]);
+        const openLine =
+          `<details${isOpen ? " open" : ""}>` +
+          (m[2] !== undefined ? `<summary>${inline(m[2])}</summary>` : "");
+        i++;
+        // Collect until the closing tag, not the first blank line/heading — the body of a
+        // <details> block is free-form text and commonly contains blank lines.
+        let rest = m[3];
+        const inner = [];
+        for (;;) {
+          const close = rest.search(/<\/details>/i);
+          if (close !== -1) {
+            inner.push(rest.slice(0, close));
+            break;
+          }
+          inner.push(rest);
+          if (i >= lines.length) break;
+          rest = lines[i++];
+        }
+        const innerMd = inner.join("\n").trim();
+        const innerHtml = innerMd ? parse(innerMd, { ...opts, toc: false, collapse: false }).html : "";
+        body.push([openLine, innerHtml, "</details>"].filter(Boolean).join("\n"));
+        continue;
+      }
+    }
+    if (/^<summary\b/i.test(line.trim())) {
+      // A bare <summary> line: collect up to </summary>, drop the attributes, escape the text.
       const buf = [line];
       i++;
-      // Collect until the matching closing tag, not the first blank line/heading — the body
-      // of a <details> block is free-form text and commonly contains blank lines.
-      if (!closeRe.test(line)) {
-        while (i < lines.length && !closeRe.test(lines[i])) {
+      if (!/<\/summary>/i.test(line)) {
+        while (i < lines.length && !/<\/summary>/i.test(lines[i])) {
           buf.push(lines[i]);
           i++;
         }
@@ -196,7 +227,12 @@ function parse(md, opts) {
           i++;
         }
       }
-      body.push(buf.join("\n"));
+      const text = buf
+        .join("\n")
+        .trim()
+        .replace(/^<summary\b[^>]*>/i, "")
+        .replace(/<\/summary>[\s\S]*$/i, "");
+      body.push(`<summary>${inline(text)}</summary>`);
       continue;
     }
 
