@@ -62,6 +62,42 @@ test("md-to-html escapes HTML in markdown by default", async () => {
   assert.match(html, /&lt;script&gt;/);
 });
 
+test("md-to-html rebuilds raw <details>/<summary> without attributes or raw HTML", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "dt-md-test-"));
+  const mdPath = join(dir, "x.md");
+  const outPath = join(dir, "x.html");
+  writeFileSync(
+    mdPath,
+    [
+      '<details ontoggle="alert(1)" open><summary onclick="alert(2)">点我 **粗**</summary>',
+      '<img src=x onerror="alert(3)">',
+      "</details>",
+      "",
+      '<summary onmouseover="alert(4)">孤立</summary>',
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  const { code, stderr } = await runCli([mdPath, "--out", outPath, "--template", writeTemplate(dir, "t.html", "data-t")]);
+  assert.equal(code, 0, stderr);
+  const html = readFileSync(outPath, "utf8");
+  assert.doesNotMatch(html, /<[a-z][^<>]*\son[a-z]+\s*=/i);
+  assert.match(html, /<details open><summary>点我 <strong>粗<\/strong><\/summary>/);
+  assert.match(html, /&lt;img src=x onerror=&quot;alert\(3\)&quot;&gt;/);
+  assert.match(html, /<summary>孤立<\/summary>/);
+});
+
+test("md-to-html keeps a plain <details><summary> quiz answer and parses its body", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "dt-md-test-"));
+  const mdPath = join(dir, "x.md");
+  const outPath = join(dir, "x.html");
+  writeFileSync(mdPath, "<details><summary>答案：C</summary>\n\n解析：**选 C**\n</details>\n", "utf8");
+  const { code, stderr } = await runCli([mdPath, "--out", outPath, "--template", writeTemplate(dir, "t.html", "data-t")]);
+  assert.equal(code, 0, stderr);
+  const html = readFileSync(outPath, "utf8");
+  assert.match(html, /<details><summary>答案：C<\/summary>\n<p>解析：<strong>选 C<\/strong><\/p>\n<\/details>/);
+});
+
 test("md-to-html renders a toc from headings with --toc", async () => {
   const dir = mkdtempSync(join(tmpdir(), "dt-md-test-"));
   const mdPath = join(dir, "t.md");
