@@ -74,7 +74,7 @@ To be explicit, authors can also wrap answers manually:
 </details>
 ```
 
-Raw `<details>`/`<summary>` blocks are preserved as-is (the only raw-HTML passthrough); everything else is treated as Markdown/text and HTML-escaped.
+Raw `<details>`/`<summary>` blocks are the only raw HTML the converter understands, and they are rebuilt rather than passed through: attributes are dropped (only a bare `open` is kept), the summary text is HTML-escaped and gets inline formatting, and the body is parsed as Markdown (so fences, lists and **bold** render, and any HTML inside it is escaped). Everything else is treated as Markdown/text and HTML-escaped.
 
 ## Customizing the Template
 
@@ -113,4 +113,4 @@ outside `<DSH_HOME>/skills/` and point `$HTML_DOC_TEMPLATE` at it.)
 
 - Zero dependencies — only `node` (≥ 20.11, uses `import.meta.dirname`) is required; no npm install needed
 - Output is fully self-contained: inline CSS + JS, no external fonts/CDN (offline-friendly)
-- Escaping is handled: content is HTML-escaped before insertion. Raw-HTML passthrough is intentionally narrow (`<details>`/`<summary>` only) since `deeptutor_run` feeds model/web_search-sourced answers into this converter automatically — a wider tag whitelist would let untrusted `<script>`/`on*=` content ride along into the generated local HTML.
+- Escaping is handled: content is HTML-escaped before insertion. There is no raw-HTML passthrough: even `<details>`/`<summary>` tags are rebuilt without their attributes and their content is escaped, since `deeptutor_run` feeds model/web_search-sourced answers into this converter automatically — a wider tag whitelist would let untrusted `<script>`/`on*=` content ride along into the generated local HTML.
