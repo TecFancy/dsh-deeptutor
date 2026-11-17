@@ -211,3 +211,7 @@ cordis.patch.yml     # bundle patch:按包名插入插件
 ```
 
 `src/tools.ts` 定义四个工具,与宿主无关;`index.ts` 在 dsh 里注册它们;`mcp.ts` 经 MCP stdio 提供它们(`mcp-main.ts` 是 `dsh-deeptutor-mcp` bin 的入口);`cli-policy.ts` 是 `deeptutor_cli` 的安全分级;`discovery.ts` 负责 capability 发现;`config.ts` 环境配置;`cli-exec.ts` 本地/SSH CLI 执行;`win-cmd.ts` 在 Windows 上启动 `.cmd`/`.bat` 形式的 CLI;`turn.ts` 单次学习回合(CLI JSONL 事件折叠与格式化);`html-render.ts` 答案 → 自包含 HTML。
+
+## 许可
+
+MIT，见 [LICENSE](LICENSE)。

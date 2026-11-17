@@ -306,3 +306,7 @@ tiers; `discovery.ts` capability discovery; `config.ts` holds env config;
 `cli-exec.ts` local/SSH CLI execution; `win-cmd.ts` starting a `.cmd`/`.bat` CLI on Windows;
 `turn.ts` one learning turn (CLI JSONL event folding + formatting);
 `html-render.ts` answer → self-contained HTML.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
