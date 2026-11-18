@@ -45,9 +45,9 @@
 
 以下是该流程的真实录制(async/await 状态机 deep-solve,挂载 `dotnet-csharp` 知识库,渲染 HTML 学习页,归档笔记本):
 
-![最终答复](docs/demo/final-answer.png)
+![最终答复](https://raw.githubusercontent.com/TecFancy/dsh-deeptutor/main/docs/demo/final-answer.png)
 
-![生成的 HTML 学习页](docs/demo/study-page.png)
+![生成的 HTML 学习页](https://raw.githubusercontent.com/TecFancy/dsh-deeptutor/main/docs/demo/study-page.png)
 
 ## 环境要求
 
