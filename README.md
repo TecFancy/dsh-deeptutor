@@ -68,9 +68,9 @@ A real recording of exactly this flow (deep-solve on the async/await state
 machine, mounted on a `dotnet-csharp` knowledge base, rendered to an HTML
 study page, then archived to a notebook):
 
-![Final answer](docs/demo/en-final-answer.png)
+![Final answer](https://raw.githubusercontent.com/TecFancy/dsh-deeptutor/main/docs/demo/en-final-answer.png)
 
-![Generated HTML study page](docs/demo/en-study-page.png)
+![Generated HTML study page](https://raw.githubusercontent.com/TecFancy/dsh-deeptutor/main/docs/demo/en-study-page.png)
 
 ## Requirements
 
