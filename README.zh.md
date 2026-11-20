@@ -2,7 +2,7 @@
 
 [English](https://github.com/TecFancy/dsh-deeptutor/blob/main/README.md) | **简体中文**
 
-面向 **DeepSeek Harness (dsh) 和 Claude Code** 的**学习辅助扩展**。它将 [HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor) 辅导服务接入你的 agent,让会话能够深度讲解知识点、出题自测、规划学习路径、检索你的个人知识库,并把学习笔记归档到 notebook,全程不出 agent。在 dsh 里它作为 bundle 加载;在 Claude Code(或任何 MCP 客户端)里,同一组工具由随包的 MCP server 提供,以 Claude Code 插件的形式安装。
+面向 **DeepSeek Harness (dsh)、Claude Code 和 pi** 的**学习辅助扩展**。它将 [HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor) 辅导服务接入你的 agent,让会话能够深度讲解知识点、出题自测、规划学习路径、检索你的个人知识库,并把学习笔记归档到 notebook,全程不出 agent。在 dsh 里它作为 bundle 加载;在 Claude Code 里以插件形式安装;在 pi 里以 pi 包的形式安装。三种宿主下,同一组四个工具都由随包的 MCP server 提供:工具只定义一次,区别只在装法。
 
 只要对 agent 说 *"给我讲讲 async/await"*,它就能跑一次 deep-solve,把答案渲染成可在浏览器打开的自包含 HTML 学习页,再把摘要归档进你的笔记本。
 
@@ -51,12 +51,34 @@
 
 ## 环境要求
 
-- 一个 agent 宿主:Claude Code(或其他 MCP 客户端)加 Node ≥ 20,或者可用的 DeepSeek Harness (dsh) 安装,0.1.0-rc.6 或更新版本。清单里只写下限不写上限,新版本 dsh 发布后不会再在安装时被拒绝;替代办法是定时拿 npm 上 `latest` 和 `next` 两个通道的宿主各冷启动一次,插件起不来就开 issue。`dsh plugin add` 自动登记 bundle 已在 dsh CLI 0.1.0-rc.6、0.2.1-rc.2 与 0.2.1-rc.3 上验证。
+- 一个 agent 宿主:Claude Code(或其他 MCP 客户端)加 Node ≥ 20;可用的 DeepSeek Harness (dsh) 安装,0.1.0-rc.6 或更新版本;或者 [pi](https://pi.dev) 加 Node ≥ 22.19(pi 自身要求的版本)。清单里只写下限不写上限,新版本 dsh 发布后不会再在安装时被拒绝;替代办法是定时拿 npm 上 `latest` 和 `next` 两个通道的宿主各冷启动一次,插件起不来就开 issue。`dsh plugin add` 自动登记 bundle 已在 dsh CLI 0.1.0-rc.6、0.2.1-rc.2 与 0.2.1-rc.3 上验证。
 - 一个 DeepTutor 部署,二选一:
   - **本地** —— 本机装有 `deeptutor` CLI(在 PATH 上,或由 `DEEPTUTOR_LOCAL_BIN` 指定);
   - **远程** —— DeepTutor 装在一台能免密 SSH 登录的服务器上,插件经 SSH 调用服务器上的 CLI。
 
   已在 DeepTutor 1.7.1 上验证。从 1.7 起,`kb`、`notebook` 命令和大部分 capability 由可选模块提供,用 `deeptutor module list` 确认要用的模块已安装并启用。
+
+## 安装到 pi(pi 包)
+
+这个包同时是一个 [pi 包](https://github.com/badlogic/pi-mono),所以一条命令就能把 skill 和工具都装上:
+
+```sh
+pi install npm:dsh-deeptutor
+```
+
+想直接用检出目录,就跑 `pi install /path/to/dsh-deeptutor`(加 `--local` 则写进项目的 `.pi/settings.json`,而不是用户级配置)。重启 pi 或执行 `/reload`,再用 `/mcp` 确认 `deeptutor` 这个 server 已连上、两个 skill 已列出。
+
+两个 skill 靠 `package.json` 里的 `pi.skills` 加载;四个工具靠 `pi.extensions` 指向的 `pi/deeptutor.ts`,那是一个约 30 行的扩展,注册的正是 Claude Code 插件用的同一个 `scripts/mcp-launch.mjs`,并把请求超时放到 30 分钟,因为一次 `deep_solve` 会远超 pi 默认的 60 秒。注册时用 `deferred` 暴露方式:四个工具的 schema 平时不进每次请求,模型要用时通过 `tool_search` 载入,载入后直接调用。想关掉工具,给某次运行加 `--no-mcp`,或在 `/mcp` 里禁用这个 server;skill 两种情况都照常工作。
+
+把 `DEEPTUTOR_*` 环境变量放在 pi 能继承到的地方(见[配置](#配置环境变量与-agent-无关)),然后重启 pi。
+
+**不装这个包**也能在本仓库目录里直接用:pi 会从当前目录一路往上找到仓库根,扫描 `.agents/skills/`,所以两个 skill 自动可见。这时工具只差一条命令:
+
+```sh
+pi mcp add deeptutor -- node /path/to/dsh-deeptutor/scripts/mcp-launch.mjs
+```
+
+它会写进 `~/.pi/agent/mcp.json`(加 `-l` 则写项目级 `.pi/mcp.json`)。
 
 ## 安装到 Claude Code(插件方式)
 
@@ -202,15 +224,16 @@ src/                 # TypeScript 源码(开发加载、类型检查)
 lib/                 # 编译产物(发布入口,由 npm run build 生成)
 scripts/md-to-html.js  # 零依赖 Markdown → HTML 转换器
 scripts/install-profile.mjs  # 一键 profile 安装器(以 `dsh-deeptutor` 二进制暴露)
-scripts/mcp-launch.mjs # 为 Claude Code 插件启动 MCP server
+scripts/mcp-launch.mjs # 为 Claude Code 插件和 pi 扩展启动 MCP server
+pi/deeptutor.ts        # pi 入口:把这个 MCP server 注册给 pi
 scripts/check-cli.ts   # 对真实 DeepTutor 的漂移检查(`npm run check:cli`)
-.agents/skills/       # 随包 skill:deeptutor/ + html-doc/(安装到 <DSH_HOME>/skills/)
+.agents/skills/       # 随包 skill:deeptutor/ + html-doc/(dsh 安装时复制到 <DSH_HOME>/skills/,Claude Code 与 pi 就地加载)
 .claude-plugin/       # Claude Code 的 plugin.json(skill 和 MCP server)和 marketplace.json
 cordis.yml           # 开发 overlay:按绝对路径插入 src/index.ts
 cordis.patch.yml     # bundle patch:按包名插入插件
 ```
 
-`src/tools.ts` 定义四个工具,与宿主无关;`index.ts` 在 dsh 里注册它们;`mcp.ts` 经 MCP stdio 提供它们(`mcp-main.ts` 是 `dsh-deeptutor-mcp` bin 的入口);`cli-policy.ts` 是 `deeptutor_cli` 的安全分级;`discovery.ts` 负责 capability 发现;`config.ts` 环境配置;`cli-exec.ts` 本地/SSH CLI 执行;`win-cmd.ts` 在 Windows 上启动 `.cmd`/`.bat` 形式的 CLI;`turn.ts` 单次学习回合(CLI JSONL 事件折叠与格式化);`html-render.ts` 答案 → 自包含 HTML。
+`src/tools.ts` 定义四个工具,与宿主无关;`index.ts` 在 dsh 里注册它们;`mcp.ts` 经 MCP stdio 提供它们(`mcp-main.ts` 是 `dsh-deeptutor-mcp` bin 的入口),Claude Code 和 pi 走的都是这条路;`cli-policy.ts` 是 `deeptutor_cli` 的安全分级;`discovery.ts` 负责 capability 发现;`config.ts` 环境配置;`cli-exec.ts` 本地/SSH CLI 执行;`win-cmd.ts` 在 Windows 上启动 `.cmd`/`.bat` 形式的 CLI;`turn.ts` 单次学习回合(CLI JSONL 事件折叠与格式化);`html-render.ts` 答案 → 自包含 HTML。
 
 ## 许可
 
