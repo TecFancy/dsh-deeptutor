@@ -1,7 +1,7 @@
 # DeepTutor Learning Assistant (dsh bundle + SKILL)
 
 > This README is the human-facing documentation; `SKILL.md` is the agent-facing instruction file (loaded on demand).
-> The bundle, the Claude Code plugin and this skill all live in `TecFancy/dsh-deeptutor`.
+> The bundle, the Claude Code plugin, the pi package and this skill all live in `TecFancy/dsh-deeptutor`.
 
 Bridges **DeepTutor** (open-source personalized tutoring platform) into your
 agent: combines your **personal knowledge bases** (RAG retrieval) with
@@ -10,8 +10,10 @@ questions, and study plans — then archives your notes to a DeepTutor notebook
 for later review.
 
 Shipped as the npm bundle `dsh-deeptutor` for DeepSeek Harness (dsh), whose
-installer also copies this skill to `~/.dsh/skills/deeptutor/`, and as a
-Claude Code plugin (skills + an MCP server with the same tools).
+installer also copies this skill to `~/.dsh/skills/deeptutor/`; as a
+Claude Code plugin (skills + an MCP server with the same tools); and as a pi
+package (`pi install npm:dsh-deeptutor`) that loads the two skills from
+`.agents/skills/` and registers the same MCP server from `pi/deeptutor.ts`.
 
 ## Features
 
@@ -33,6 +35,9 @@ claude plugin install dsh-deeptutor@dsh-deeptutor
 
 # dsh, one-shot: bundle + skill, from the published package
 pnpm dlx dsh-deeptutor --profile web
+
+# pi: package = this skill + html-doc + MCP tools
+pi install npm:dsh-deeptutor
 
 # Or install the skill manually from a checkout
 xcopy /e /i .agents\skills\deeptutor %USERPROFILE%\.dsh\skills\deeptutor   # Windows
@@ -109,8 +114,8 @@ A: Only env vars change (`DEEPTUTOR_SSH_HOST` / remote paths) — never the SKIL
 **Q: Is the knowledge base list hardcoded?**
 A: No. Tools query `deeptutor_kb list` dynamically; new bases are picked up automatically.
 
-**Q: Can other agents (Claude Code / Codex) use it?**
-A: Yes. Claude Code installs the plugin and gets the skill plus the `deeptutor_*` tools over MCP. Other MCP clients can run the `dsh-deeptutor-mcp` bin (`npx -y -p dsh-deeptutor dsh-deeptutor-mcp`); agents without MCP follow the plain CLI path in the SKILL.
+**Q: Can other agents (Claude Code / pi / Codex) use it?**
+A: Yes. Claude Code installs the plugin and pi installs the package; both get the skills plus the `deeptutor_*` tools over MCP. Other MCP clients can run the `dsh-deeptutor-mcp` bin (`npx -y -p dsh-deeptutor dsh-deeptutor-mcp`); agents without MCP follow the plain CLI path in the SKILL.
 
 ## Maintenance
 
