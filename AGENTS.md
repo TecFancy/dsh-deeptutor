@@ -11,7 +11,7 @@ Repo-specific rules for agents working on this repo (dsh-deeptutor).
 
 ## Verifying a change actually works
 
-1. `npm run typecheck` — tsc --noEmit over src/ + tests/ + scripts/*.ts.
+1. `npm run typecheck` — tsc --noEmit over src/ + tests/ + scripts/*.ts + pi/*.ts.
 2. `npm test` — node:test + type stripping (Node >= 22.6).
 3. `npm run build` — a src/ edit without a rebuild runs stale code (dsh loads
    `lib/` from the installed package; `lib/` is gitignored, `prepack`
@@ -22,17 +22,20 @@ Repo-specific rules for agents working on this repo (dsh-deeptutor).
 
 ## Architecture rules
 
-- Tools are defined once in `src/tools.ts`. `src/index.ts` (dsh) and
-  `src/mcp.ts` (MCP / Claude Code) are thin adapters; never add tool logic to
-  either host file.
+- Tools are defined once in `src/tools.ts`. `src/index.ts` (dsh), `src/mcp.ts`
+  (MCP: Claude Code, pi and any other MCP client) and `pi/deeptutor.ts` (the pi
+  extension that starts that MCP server) are thin adapters; never add tool logic
+  to a host file.
 - Do not mirror DeepTutor's command surface. No capability enums, no tool
   lists, no per-command wrappers for things `deeptutor_cli` already reaches.
   A dedicated tool is justified only when it does something the passthrough
   cannot (event folding, file upload, HTML rendering).
 - The `deeptutor_cli` tiers live in `src/cli-policy.ts`. Unknown verbs must
   stay in the `confirm` tier; widen `read` only for verbs that cannot write.
-- Keep the package free of runtime dependencies: the Claude Code plugin runs
-  `src/` straight from a git checkout without `npm install`.
+- Keep the package free of runtime dependencies: the Claude Code plugin and
+  the pi package both run `src/` straight from a checkout without `npm install`.
+  That is also why `pi/deeptutor.ts` types pi's `ExtensionAPI` by hand instead
+  of importing `@earendil-works/pi-coding-agent`.
 - MCP stdout carries protocol only: log to stderr in anything the MCP server
   imports.
 
