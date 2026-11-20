@@ -2,13 +2,14 @@
 
 **English** | [简体中文](https://github.com/TecFancy/dsh-deeptutor/blob/main/README.zh.md)
 
-A **learning-assistant extension for DeepSeek Harness (dsh) and Claude Code**.
+A **learning-assistant extension for DeepSeek Harness (dsh), Claude Code and pi**.
 It connects your agent to a [HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor)
 tutoring service, so a session can explain topics in depth, quiz you, plan
 learning paths, search your personal knowledge bases, and keep a study
 notebook, all without leaving the agent. In dsh it loads as a bundle; in
-Claude Code (or any MCP client) the same tools are served by a bundled MCP
-server, installed as a Claude Code plugin.
+Claude Code it installs as a plugin; in pi it installs as a pi package. In all
+three the same four tools are served over MCP by the bundled server, so the
+tools are defined once and only the install differs.
 
 Ask the agent *"teach me async/await"* and it can run a deep-solve, render the
 answer as a self-contained HTML study page you can open in a browser, and
@@ -74,8 +75,9 @@ study page, then archived to a notebook):
 
 ## Requirements
 
-- An agent host: Claude Code (or another MCP client) with Node ≥ 20, or a
-  working DeepSeek Harness (dsh) install, 0.1.0-rc.6 or newer. The manifest
+- An agent host: Claude Code (or another MCP client) with Node ≥ 20, a
+  working DeepSeek Harness (dsh) install, 0.1.0-rc.6 or newer, or
+  [pi](https://pi.dev) with Node ≥ 22.19 (the version pi itself requires). The manifest
   declares a version floor rather than a ceiling, so a new dsh release is never
   refused at install time; a scheduled probe boots the plugin against the
   current npm `latest` and `next` hosts instead and opens an issue when
@@ -90,6 +92,42 @@ study page, then archived to a notebook):
   Tested against DeepTutor 1.7.1. Since 1.7 the `kb` and `notebook` commands
   and most capabilities come from optional modules; check that the ones you
   use are installed and enabled with `deeptutor module list`.
+
+## Install into pi (package)
+
+This package is also a [pi package](https://github.com/badlogic/pi-mono), so one
+command brings the skills and the tools:
+
+```sh
+pi install npm:dsh-deeptutor
+```
+
+To work from a checkout instead, `pi install /path/to/dsh-deeptutor` (add
+`--local` to write the declaration to `.pi/settings.json` for one project
+rather than your user settings). Restart pi, or run `/reload`, then check with
+`/mcp` that the `deeptutor` server connected and that the two skills are listed.
+
+The skills arrive through `pi.skills` in `package.json`; the tools through
+`pi.extensions → pi/deeptutor.ts`, a ~30-line extension that registers the same
+`scripts/mcp-launch.mjs` server the Claude Code plugin runs, with a 30-minute
+request timeout because one `deep_solve` turn outlives pi's 60-second default.
+The server is registered with `deferred` exposure: the four tool schemas stay
+out of every request until the model reaches for them with `tool_search`, then
+it calls them directly. Pass `--no-mcp` to a pi run, or disable the server in
+`/mcp`, to hide the tools; the skills keep working either way.
+
+Set the `DEEPTUTOR_*` env vars where pi can inherit them (see
+[Configuration](#configuration-env-vars-agent-agnostic)) and restart pi.
+
+**Without the package**, a running pi finds the two skills on its own inside
+this repository, because it scans `.agents/skills/` from the working directory
+up to the repository root. The tools then need one command:
+
+```sh
+pi mcp add deeptutor -- node /path/to/dsh-deeptutor/scripts/mcp-launch.mjs
+```
+
+That writes `~/.pi/agent/mcp.json` (add `-l` for a project `.pi/mcp.json`).
 
 ## Install into Claude Code (plugin)
 
@@ -225,8 +263,8 @@ Two skills ship inside this package (`.agents/skills/deeptutor` and
 Installing a newer package version overwrites skill files in place; files not
 shipped by the package are never deleted.
 
-The Claude Code plugin loads the same skills straight from `.agents/skills/`.
-The skills are maintained in this repo under `.agents/skills/`.
+The Claude Code plugin and the pi package load the same skills straight from
+`.agents/skills/`. The skills are maintained in this repo under `.agents/skills/`.
 
 ## Configuration (env vars, agent-agnostic)
 
@@ -291,9 +329,10 @@ src/                 # TypeScript sources (dev loading, typecheck)
 lib/                 # compiled ESM (published entry, from `npm run build`)
 scripts/md-to-html.js  # zero-dependency Markdown → HTML converter
 scripts/install-profile.mjs  # one-shot profile installer (exposed as the `dsh-deeptutor` binary)
-scripts/mcp-launch.mjs # starts the MCP server for the Claude Code plugin
+scripts/mcp-launch.mjs # starts the MCP server for the Claude Code plugin and the pi extension
+pi/deeptutor.ts        # pi entry point: registers that MCP server with pi
 scripts/check-cli.ts   # drift check against a live DeepTutor (`npm run check:cli`)
-.agents/skills/       # bundled skills: deeptutor/ + html-doc/ (installed to <DSH_HOME>/skills/)
+.agents/skills/       # bundled skills: deeptutor/ + html-doc/ (dsh installs them to <DSH_HOME>/skills/, Claude Code and pi load them in place)
 .claude-plugin/       # Claude Code plugin.json (skills + MCP server) + marketplace.json
 cordis.yml           # dev overlay: insert src/index.ts by absolute path
 cordis.patch.yml     # bundle patch: insert the package by name
@@ -301,7 +340,8 @@ cordis.patch.yml     # bundle patch: insert the package by name
 
 `src/tools.ts` defines the four tools once, host-neutral; `index.ts` registers
 them in dsh; `mcp.ts` serves them over MCP stdio (`mcp-main.ts` is the
-`dsh-deeptutor-mcp` bin); `cli-policy.ts` holds the `deeptutor_cli` safety
+`dsh-deeptutor-mcp` bin) and that is what Claude Code and pi reach;
+`cli-policy.ts` holds the `deeptutor_cli` safety
 tiers; `discovery.ts` capability discovery; `config.ts` holds env config;
 `cli-exec.ts` local/SSH CLI execution; `win-cmd.ts` starting a `.cmd`/`.bat` CLI on Windows;
 `turn.ts` one learning turn (CLI JSONL event folding + formatting);

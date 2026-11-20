@@ -15,9 +15,17 @@ This skill is **agent-agnostic**. Use the first driver that exists in your
 environment; the action, not the tool, is what matters.
 
 1. **The `deeptutor_*` tools** (preferred). dsh registers them through the
-   `dsh-deeptutor` bundle; Claude Code and other MCP clients get the same four
-   tools from the `dsh-deeptutor` plugin's MCP server (in Claude Code they are
-   named `mcp__plugin_dsh-deeptutor_deeptutor__deeptutor_run` and so on).
+   `dsh-deeptutor` bundle; Claude Code and pi get the same four tools from the
+   `dsh-deeptutor` package's MCP server. The names differ per host:
+   - dsh: `deeptutor_run`, `deeptutor_kb`, `deeptutor_note`, `deeptutor_cli`
+   - pi: `mcp__deeptutor__deeptutor_run` and so on (the server is registered as
+     `deeptutor` with `deferred` exposure, so the tools may need `tool_search`
+     once per session before they can be called directly)
+   - Claude Code: `mcp__plugin_dsh-deeptutor_deeptutor__deeptutor_run` and so on
+
+   Any other MCP client gets bare `deeptutor_*` names, whether it starts the
+   server from `scripts/mcp-launch.mjs` or `npx -y -p dsh-deeptutor
+   dsh-deeptutor-mcp`.
 2. **The plain CLI.** `deeptutor <args>` locally, or
    `ssh <DEEPTUTOR_SSH_HOST> <DEEPTUTOR_REMOTE_BIN> <args>` for a remote
    deployment. On Windows run it from PowerShell, not Git Bash: MSYS rewrites
@@ -128,7 +136,7 @@ deeptutor_run capability=deep_solve prompt=<topic> kbs=[...] tools=[rag, web_sea
 ```
 
 `html` must be an **absolute** path. A tool has no workspace root (dsh hands it
-only the agent identity, and the MCP server has no session), so a relative path
+only the agent identity, and an MCP server has no session), so a relative path
 cannot be resolved against your working directory — it is rejected instead of
 silently landing under the host process cwd. Prefix it with your working
 directory explicitly.
