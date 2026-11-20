@@ -26,3 +26,13 @@ jobs:
         run: |
           node --input-type=module -e "import fs from 'node:fs'; const a=fs.readFileSync('scripts/md-to-html.js','utf8'); const b=fs.readFileSync('.agents/skills/html-doc/scripts/md-to-html.js','utf8'); if(a!==b){ console.error('scripts/md-to-html.js differs from .agents/skills/html-doc/scripts/md-to-html.js'); process.exit(1) }"
       - run: npm test
+      - name: Smoke-test the pi package entry points
+        shell: bash
+        # pi itself is not installed in CI (it is a 24 MB host, and its Node floor
+        # is above this job's 22). These two assertions are the parts of a pi
+        # install that can break without pi: the manifest must name files that
+        # exist and ship in the tarball, and the launcher the extension registers
+        # must actually start and speak MCP. tests/pi-extension.test.ts and
+        # tests/mcp-launch.test.ts cover both; this step just makes the intent
+        # visible in the job log.
+        run: node --test --experimental-strip-types tests/pi-extension.test.ts tests/mcp-launch.test.ts
