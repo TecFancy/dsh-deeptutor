@@ -1,7 +1,7 @@
 {
   "name": "dsh-deeptutor",
-  "version": "0.3.4",
-  "description": "Learning assistant extension for DeepSeek Harness (dsh) and Claude Code (MCP): DeepTutor tutoring for your agent: deep explanations, self-test questions, learning paths, personal knowledge-base search (RAG), note archiving, and any other DeepTutor CLI command (drives the DeepTutor CLI locally or over SSH).",
+  "version": "0.4.0",
+  "description": "Learning assistant extension for DeepSeek Harness (dsh), Claude Code (MCP) and pi: DeepTutor tutoring for your agent: deep explanations, self-test questions, learning paths, personal knowledge-base search (RAG), note archiving, and any other DeepTutor CLI command (drives the DeepTutor CLI locally or over SSH).",
   "keywords": [
     "dsh",
     "dsh-plugin",
@@ -11,7 +11,10 @@
     "rag",
     "agent",
     "mcp",
-    "claude-code"
+    "claude-code",
+    "pi",
+    "pi-package",
+    "pi-extension"
   ],
   "license": "MIT",
   "repository": {
@@ -41,6 +44,7 @@
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./scripts/*": "./scripts/*",
     "./.agents/skills/*": "./.agents/skills/*",
+    "./pi/*": "./pi/*",
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
@@ -52,8 +56,17 @@
     "cordis.patch.yml",
     "README.md",
     "README.zh.md",
-    "LICENSE"
+    "LICENSE",
+    "pi"
   ],
+  "pi": {
+    "skills": [
+      "./.agents/skills"
+    ],
+    "extensions": [
+      "./pi/deeptutor.ts"
+    ]
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
