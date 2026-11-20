@@ -1,6 +1,6 @@
 {
   "name": "dsh-deeptutor",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "description": "Learning assistant extension for DeepSeek Harness (dsh), Claude Code (MCP) and pi: DeepTutor tutoring for your agent: deep explanations, self-test questions, learning paths, personal knowledge-base search (RAG), note archiving, and any other DeepTutor CLI command (drives the DeepTutor CLI locally or over SSH).",
   "keywords": [
     "dsh",
